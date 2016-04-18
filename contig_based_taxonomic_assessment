@@ -4,10 +4,13 @@
 # This script uses the SPADES assembler to create contigs from a pair of fastq files and then
 # uses blastn and then rapsearch to try to taxonomically assign the contigs.
 #
+# It also maps individual reads back to to contigs to identify non-aligning read pairs and to 
+# assess how many reads were collapsed into contigs
+#
 # After assembly, it uses blastn to align the contigs to the nt database and pulls out reads that
 # produce good nt-level alignments
 #
-# It then uses rapsearch2 to align the remaining contigs to the nr database. 
+# It then uses rapsearch to align the remaining contigs to the nr database. 
 #
 # After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
 # created and contigs aligning to viral taxa are output to files
@@ -15,6 +18,27 @@
 # The script takes one argument as input a file "base name"
 #
 # It expects that a pair of files named <base_name>_R1_fuh.fastq and <base_name>_R2_fuh.fastq  exist
+#
+# There are also a number of other scripts and programs (spades.py, bowtie2, ...) that this script expects
+# to be in the user's PATH:
+#
+#  Programs:
+#
+#  spades.py
+#  bowtie2
+#  bowtie2-build
+#  blastn
+#  rapsearch
+#
+#  Scripts I've written:
+#
+#  fasta_to_fasta
+#  filter_fasta_by_size
+#  tally_sam_subjects
+#  fasta_from_sam
+#  fasta_from_blast
+#  tally_hits_universal.pl 
+#  distribute_fasta_by_blast_taxid.pl 
 #
 # Mark Stenglein
 #
@@ -30,15 +54,6 @@ f2=${file_base}_R2_fuh.fastq
 
 # these brackets are for tee'ing stdout to the logfile
 {
-
-# this is a somewhat kludgey way to build the pipeline on the fly
-if [ "dont_do_this_part_already_done" = "XXX" ]
-then
-
-   echo "bla bla bla" > /dev/null
-
-# just keep moving this else down to keep adding to what will get done
-else
 
    echo "begin contig-based taxonomic assessment for $file_base"
    date
@@ -169,8 +184,6 @@ else
 
    echo "done with contig-based taxonomic assessment for $file_base"
    date
-
-fi
 
 
 } | tee -a $log

@@ -1,18 +1,75 @@
 #!/bin/bash
 
+#
+# This is the master script for running a pipeline, the main goal of which is 
+# taxonomically assign the reads in a sequencing dataset that remain after filtering 
+# of host sequences. 
+#
+# The main steaps in the pipeline are:
+#
+#  (*) quality assessment w/ FastQC
+#
+#  (*) trimming or removal of low quality sequences and collapse of non-unique read pairs [run_preprocessing_pipeline_one_sample]
+#
+#  (*) quality assessment w/ FastQC
+#
+#  (*) filtering of host sequences [via the script specified by host_filtering_script]
+#
+#  (*) de novo assembly of remaining reads and taxonomic assement of contigs, first by nt to nt alignments (blastn) and then by 
+#      translated-nt to protein alignments (rapsearch)  [contig_based_taxonomic_assessment]
+#
+#  (*) taxonomic assement of non contig-mapping reads, first by nt to nt alignments (blastn) and then by translated-nt to protein 
+#      alignments (rapsearch)  [contig_based_taxonomic_assessment]
+#
+#
+# This script depends on a number of other scripts that in turn also have dependencies (see individual scripts).  
+#
+# Also, for the taxonomic tallying to work (tally_hits_universal.pl), it is necessary to tell PERL where to find certain
+# perl modules by setting the  PERL5LIB environmental variable, for example as follows (put this line in the .bashrc file in your 
+# home dir
+# 
+# export PERL5LIB=$PERL5LIB:/home/mdstengl/bin
+#
+# The major modifiable step is to specify the host_filtering_script parameter, which
+# should refer to a script that will remove host reads (see below)
+#
+#
+
+# this is the sample ID and the base name of the file.  This script expects paired read files to exist in the same
+# directory as this script is located of the form ${id}_R1.fastq and ${id}_R2.fastq
 id=$1
 
 mkdir -p fastqc_pre 
 mkdir -p fastqc_post
 
-### fastqc -o fastqc_pre ${id}_R1.fastq ${id}_R2.fastq 
+# pre-filtering FastQC 
+fastqc -o fastqc_pre ${id}_R1.fastq ${id}_R2.fastq 
 
 # run quality trimming, adapter trimming, unique collapsing script for this sample -> output ${id}_R[12]_fu.fastq
 ./run_preprocessing_pipeline_one_sample $id
 
-### fastqc -o fastqc_post ${id}_R1_fu.fastq ${id}_R2_fu.fastq 
+# post-filtering FastQC 
+fastqc -o fastqc_post ${id}_R1_fu.fastq ${id}_R2_fu.fastq 
 
-### host_filtering_script=`grep $id host_filtering.txt | cut -f 2`
+#
+# Specify a host filtering script.  This script can be whatever you want, but should create
+# a pair of fastq files of the form ${id}_R1_fuh.fastq and ${id}_R2_fuh.fastq 
+#
+# One way to handle multiple different host filtering scripts is to create a file that
+# maps id -> host filtering script.  For instance, a 2 column file with id in the first column
+# and the name of the host mapping script in the 2nd column.  Then you could run this command
+# to get the name of the script for each particular ID
+#
+#       host_filtering_script=`grep $id host_filtering.txt | cut -f 2`
+# 
+# Or, simply state name of the script.  The script should be in this directory and have executable permissions:
+# 
+# for example:
+#
+# host_filtering_script=filter_cow_reads
+#
+# or:
+# 
 host_filtering_script=filter_ag_reads
 
 # run whatever host filtering script for this sample -> output ${id}_R[12]_fuh.fastq
