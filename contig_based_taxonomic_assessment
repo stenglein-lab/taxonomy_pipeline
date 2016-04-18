@@ -1,0 +1,176 @@
+#!/bin/bash
+
+#
+# This script uses the SPADES assembler to create contigs from a pair of fastq files and then
+# uses blastn and then rapsearch to try to taxonomically assign the contigs.
+#
+# After assembly, it uses blastn to align the contigs to the nt database and pulls out reads that
+# produce good nt-level alignments
+#
+# It then uses rapsearch2 to align the remaining contigs to the nr database. 
+#
+# After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
+# created and contigs aligning to viral taxa are output to files
+#
+# The script takes one argument as input a file "base name"
+#
+# It expects that a pair of files named <base_name>_R1_fuh.fastq and <base_name>_R2_fuh.fastq  exist
+#
+# Mark Stenglein
+#
+# 11/6/2015
+#
+
+file_base=$1
+
+log=${file_base}.pipeline.log
+
+f1=${file_base}_R1_fuh.fastq
+f2=${file_base}_R2_fuh.fastq
+
+# these brackets are for tee'ing stdout to the logfile
+{
+
+# this is a somewhat kludgey way to build the pipeline on the fly
+if [ "dont_do_this_part_already_done" = "XXX" ]
+then
+
+   echo "bla bla bla" > /dev/null
+
+# just keep moving this else down to keep adding to what will get done
+else
+
+   echo "begin contig-based taxonomic assessment for $file_base"
+   date
+
+   # **********************************
+   # first, create contigs using spades
+   # **********************************
+
+   echo "run spades for $file_base"
+   date
+
+   echo "spades.py -o ${file_base}.spades --pe1-1 $f1 --pe1-2 $f2 -t 24 -m 150"
+   spades.py -o ${file_base}.spades --pe1-1 $f1 --pe1-2 $f2 -t 24 -m 150
+
+   echo "done running spades for $file_base"
+   date
+
+   # cp contigs file (fasta_to_fasta converts to 1-line fasta format)
+   fasta_to_fasta ${file_base}.spades/contigs.fasta > ./${file_base}_spade_contigs.fa
+
+
+	# ***********************************************
+	# assess which reads align to contigs
+	# so that we can:
+	# (1) do a weighted taxonomic assessment, and 
+	# (2) taxomically assess non-aligning reads later
+	# ***********************************************
+	spades_output=${file_base}_spade_contigs.fa
+	big_contigs_file=${file_base}_spade_contigs_gt_150.fa
+	filter_fasta_by_size -b 150 $spades_output | fasta_to_fasta >  $big_contigs_file
+
+	bt_index=${file_base}_spade_contigs_gt_150
+	bowtie2-build $big_contigs_file $bt_index
+	# bowtie2-build $spades_output $bt_index
+
+	# C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
+	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
+	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f2 -p 12 -S ${f2}.${bt_index}.sam 2> ${f2}.${bt_index}.bt_log
+
+	# count the # of reads that hit each contig 
+	tally_sam_subjects ${f1}.${bt_index}.sam > ${f1}.${bt_index}.sam.subject_hits
+	tally_sam_subjects ${f2}.${bt_index}.sam > ${f2}.${bt_index}.sam.subject_hits
+
+	# ************************************************
+	# create files of non-aligning aka singleton reads
+	# ************************************************
+	
+	# create a composite sam file
+	cat ${f1}.${bt_index}.sam ${f2}.${bt_index}.sam > ${file_base}_R12_fuh.fastq.${bt_index}.sam
+	fasta_from_sam -r -f $f1 ${file_base}_R12_fuh.fastq.${bt_index}.sam > ${file_base}_R1_fuhs.fastq
+	fasta_from_sam -r -f $f2 ${file_base}_R12_fuh.fastq.${bt_index}.sam > ${file_base}_R2_fuhs.fastq
+
+   weights_file=${f1}.${bt_index}.sam.subject_hits
+
+   # *********************
+   # blastn contigs vs. nt
+   # *********************
+
+   f1=${file_base}_spade_contigs.fa
+
+   echo "blastn contigs for $file_base ($f1) vs nt"
+   date
+
+   db="/home/databases/nr_nt/nt"
+   echo "blastn -query $f1 -db $db -num_threads 24 -evalue 1e-8 -task megablast -outfmt 6 | consolidate_blast_output > ${f1}.bn_nt"
+   blastn -query $f1 -db $db -num_threads 24 -evalue 1e-8 -task megablast -outfmt 6 | consolidate_blast_output > ${f1}.bn_nt
+
+   echo "done with blastn for $file_base"
+   date
+
+   # get the blastn vs nt "misses"
+   f1_out=${f1}.bn_nt
+   fasta_from_blast -r $f1_out > ${file_base}_spade_contigs_n.fa
+
+   # *******************************************
+   # Taxonomic assessment of nt-based alignments
+   # *******************************************
+
+   echo "tallying blastn vs. nt hits" 
+   date 
+   tally_hits_universal.pl -w $weights_file ${f1}.bn_nt > ${f1}.bn_nt.tally
+   tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.bn_nt > ${f1}.bn_nt.desc_tally
+   tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.bn_nt > ${f1}.bn_nt.tab_tree_tally
+
+   # ***************************************************************************
+   # pull out virus-derived reads - this will create a file for each viral taxon
+   # ***************************************************************************
+   distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.bn_nt
+
+   # **************************************************
+   # run RAPSEARCH to identify protein-level alignments
+   # **************************************************
+
+   echo "rapsearch remaining contigs for $file_base vs. nr" 
+   date 
+
+   f1=${file_base}_spade_contigs_n.fa
+
+   rap_index=/home/databases/nr_nt/nr_rap_index
+
+   # -l 20 -> length 20 (mininmum amino acid alignment) 
+   echo "rapsearch -q $f1 -d $index  -z 24 -l 20 -t n -v 10 -b 10 -s f -e 1e-2  -o ${f1}.rap_nr"
+   rapsearch -q $f1 -d $rap_index  -z 24 -l 20 -t n  -v 10 -b 10 -s f -e 1e-2  -o ${f1}.rap_nr
+
+   # contigs with no good hit by blastn vs. nt or rapsearch vs. nr
+   fasta_from_blast -r -f ${f1} ${f1}.rap_nr.m8 > ${file_base}_spade_contigs_nn.fa
+
+   echo "done with rapsearch for $file_base" 
+   date 
+
+   # *******************************************
+   # Taxonomic assessment of aa-based alignments
+   # *******************************************
+   echo "tallying rapsearch vs. nr hits" 
+   tally_hits_universal.pl -w $weights_file ${f1}.rap_nr.m8 > ${f1}.rap_nr.tally
+   tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.rap_nr.m8 > ${f1}.rap_nr.desc_tally
+   tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.rap_nr.m8 > ${f1}.rap_nr.tab_tree_tally
+
+   echo "done tallying" 
+   date 
+
+   echo "pulling out virus-derived reads (RAPSearch)" 
+
+   # ***************************************************************************
+   # pull out virus-derived reads - this will create a file for each viral taxon
+   # ***************************************************************************
+   distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.rap_nr.m8
+
+   echo "done with contig-based taxonomic assessment for $file_base"
+   date
+
+fi
+
+
+} | tee -a $log

@@ -1,0 +1,26 @@
+#!/bin/bash
+
+id=$1
+
+mkdir -p fastqc_pre 
+mkdir -p fastqc_post
+
+### fastqc -o fastqc_pre ${id}_R1.fastq ${id}_R2.fastq 
+
+# run quality trimming, adapter trimming, unique collapsing script for this sample -> output ${id}_R[12]_fu.fastq
+./run_preprocessing_pipeline_one_sample $id
+
+### fastqc -o fastqc_post ${id}_R1_fu.fastq ${id}_R2_fu.fastq 
+
+### host_filtering_script=`grep $id host_filtering.txt | cut -f 2`
+host_filtering_script=filter_ag_reads
+
+# run whatever host filtering script for this sample -> output ${id}_R[12]_fuh.fastq
+./$host_filtering_script $id
+
+# make contigs and taxonomically assess those
+./contig_based_taxonomic_assessment $id
+
+# taxonomically assess singletons (reads that don't map to contigs)
+./read_based_taxonomic_assessment $id
+

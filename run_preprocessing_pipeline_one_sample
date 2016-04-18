@@ -1,0 +1,113 @@
+#!/bin/bash
+
+#
+# This script runs a "pre-processing" analysis pipeline on a paired-end sequencing dataset.  
+
+# What it does is:
+#
+# (1) uses trimmomatic to trim low quality sequences, low quality bases, and adapter sequences
+#     You may need to modify the adapter sequence file (see below)
+#
+#     outputs  <file_base>_R1_f.fastq <file_base>_R2_f.fastq
+#
+# (2) uses cd-hit-est to collapse duplicate read pairs.  This is done by concatenating the first 30nt of 
+#     the read1 and read2 sequences and collapsing read pairs that have at least 58/60 of these nt identical
+#     Do it this way cause faster.
+#
+#     outputs  <file_base>_R1_fu.fastq <file_base>_R2_fu.fastq
+# 
+#
+# Input:
+#
+# This script takes as an argument a file base name.  
+# It expects files of the form: <base_name>_R1.fastq and <base_name>_R2.fastq to exist
+# These should correspond to the read1 and read2 paired-end data.
+#
+#
+# Dependencies:
+#
+# This script calls in turn a bunch of other scripts I've written.  These should be in your PATH.
+#
+#  concat_fasta_records 
+#  fastq_to_fasta
+#  reconcile_read2_file 
+#  reconcile_fastq_to_fasta
+#  fasta_from_sam
+#
+# Mark Stenglein
+#
+# 10/6/2015 
+#
+
+file_base=$1
+
+log=${file_base}.pipeline.log
+
+#
+# Hardcoded paths --> may need to change
+#
+
+# Change this adapter sequence file if using different type of adapters (e.g. Nextera not TruSeq)
+# adap="/home/apps/Trimmomatic-0.33/adapters/TruSeq3-PE-2.fa"
+adap="/home/apps/Trimmomatic-0.33/adapters/NexteraPE-PE.fa"
+# Trimmmomatic jar
+jar=/home/apps/Trimmomatic-0.33/trimmomatic-0.33.jar
+
+
+# bracket to redirect all stdout output to log file
+{
+
+# this is a somewhat kludgey way to build the pipeline on the fly
+if [ "dont_do_this_part_already_done" = "XXX" ]
+then
+
+   # just a place holder
+   echo "bla bla bla " > /dev/null
+
+
+# just keep moving this else down to keep adding to what will get done
+else
+
+   echo "***********************************" 
+   echo "begin processing sample: $file_base" 
+   date 
+
+   f1=${file_base}_R1.fastq
+   f2=${file_base}_R2.fastq
+
+   # use cutadapt to trim adapter sequences and 
+   ### java -jar $jar PE -threads 8 -phred33  $f1 $f2 ${file_base}_R1_f.fastq ${file_base}_R1_unpaired_trimmed.fastq ${file_base}_R2_f.fastq ${file_base}_R2_unpaired_trimmed.fastq MINLEN:60 ILLUMINACLIP:${adap}:1:30:10:4:true LEADING:20 TRAILING:20 SLIDINGWINDOW:4:25 MINLEN:60
+
+   # use cutadapt to trim adapter sequences
+   ## cutadapt -a AGATCGGAAGAGCACACG -a AGATCGGAAGAGCGTCGT -q 20,20 --minimum-length 60 $f1 > ${file_base}_R1_f.fastq
+   ## cutadapt -a AGATCGGAAGAGCACACG -a AGATCGGAAGAGCGTCGT -q 20,20 --minimum-length 60 $f2 > ${file_base}_R2_f.fastq
+
+   cutadapt -a AGATCGGAAGAGC -A AGATCGGAAGAGC -g GCTCTTCCGATCT -G GCTCTTCCGATCT -q 30,30 --minimum-length 80 -u 1 -o ${file_base}_R1_f.fastq -p ${file_base}_R2_f.fastq $f1 $f2
+
+   f1=${file_base}_R1_f.fastq
+   f2=${file_base}_R2_f.fastq
+
+   # fastq_to_fasta 
+   fastq_to_fasta < $f1 > ${file_base}_R1_f.fa
+   fastq_to_fasta < $f2 > ${file_base}_R2_f.fa
+
+   # collapse to "unique" reads based on 1st 30 bases of R1 and R2 
+   # allow 2 mismatches in these 60 bases (58/60 = 96.66% -> so cluster seqs w/ >= 96% pairwise id)
+   # this collapses reads w/ identical start and end points, likely PCR duplicates
+   # doing it based on 60 bases only speeds up process and is enough info to identify dups
+   concat_fasta_records -5 30 ${file_base}_R1_f.fa ${file_base}_R2_f.fa > ${file_base}_R12_30_f.fa 
+
+   cd-hit-est -c 0.96 -i ${file_base}_R12_30_f.fa  -o ${file_base}_R12_30_f.fa.cdhit  -T 12 -M 0 
+
+   reconcile_fastq_to_fasta ${file_base}_R1_f.fastq ${file_base}_R12_30_f.fa.cdhit  > ${file_base}_R1_fu.fastq
+   reconcile_fastq_to_fasta ${file_base}_R2_f.fastq ${file_base}_R12_30_f.fa.cdhit  > ${file_base}_R2_fu.fastq
+
+   f1=${file_base}_R1_fu.fastq
+   f2=${file_base}_R2_fu.fastq
+
+fi
+
+} 2>&1  | tee -a $log  # output tee'd to a logfile
+
+
+
