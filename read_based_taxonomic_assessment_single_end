@@ -1,0 +1,117 @@
+#!/bin/bash
+
+#
+# This script attempts to taxonomically assign reads (that don't map to contigs)
+#
+# It uses gsnapl to align reads to the nt database and pulls out reads that
+# produce good nt-level alignments
+#
+# It then uses rapsearch to align the remaining reads to the nr database. 
+#
+# After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
+# created and contigs aligning to viral taxa are output to files
+#
+# The script takes one argument as input a file "base name"
+#
+# It expects that a file named <base_name>_R1_fuhs.fastq to exist
+# 
+# The s in the fuhs indicates that these are "singleton" reads that don't map to the contigs that were
+# created as part of the contig_based_taxonomic_assessment script
+#
+# There are also a number of other scripts and programs (spades.py, bowtie2, ...) that this script expects
+# to be in the user's PATH:
+#
+#  Programs:
+#
+#  gsnapl
+#
+#  blastn
+#  rapsearch
+#
+#  Scripts I've written:
+#
+#  fasta_from_gsnap
+#  reconcile_read2_file
+#  fastq_to_fasta
+#  tally_hits_gsnap.pl 
+#  tally_hits_universal.pl 
+#  distribute_fasta_by_blast_taxid.pl 
+#
+# Mark Stenglein
+#
+# 4/24/2015 
+#
+
+file_base=$1
+
+log=${file_base}.pipeline.log
+
+{
+
+   echo "performing read-based taxonomic assessment for $file_base"
+   date
+
+   # first, run gsnap to get nt-based alignments to db seqs
+
+   f1=${file_base}_R1_fuhs.fastq
+
+   echo "gsnap $file_base ($f1) vs. nt database" 
+   date
+
+   nt_index=/home/databases/nr_nt/nt/
+   gsnapl --use-shared-memory=1 -B 4 -t 12 --npaths=10  --gmap-mode=none --nofails --ordered -D $nt_index -d nt $f1 > ${f1}.gsnap
+
+   # get the gsnap vs nt "misses"
+   f1_out=${f1}.gsnap
+   fasta_from_gsnap -r $f1_out > ${file_base}_R1_fuhsn.fastq
+
+   echo "tallying gsnap vs. nt hits" 
+   date 
+   tally_hits_gsnap.pl ${file_base}_R1_fuhs.fastq.gsnap  > ${file_base}_R1_fuhs.fastq.gsnap.tally  
+	tally_hits_gsnap.pl -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.desc_tally
+   tally_hits_gsnap.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.tab_tree_tally 
+
+   # pull out hits to taxa of interest
+   fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
+
+   # pull out virus-derived reads
+   distribute_fasta_by_gsnap_taxid.pl -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
+
+   # RAPSEARCH
+
+   f1=${file_base}_R1_fuhsn.fastq
+
+   echo "rapsearch remaining hits for $file_base ($f1) vs. nr" 
+   date 
+
+   rap_index=/home/databases/nr_nt/nr_rap_index
+
+   echo "rapsearch ${file_base}_R1_fuhsn.fastq"
+   # -l 20 -> length 20 (mininmum amino acid alignment) 
+   rapsearch -q $f1 -d $rap_index -u 1  -z 24 -l 20 -t n -t q -v 10 -b 10 -s f -e 1e-2  > ${f1}.rap_nr
+
+   fasta_from_blast -r -f ${f1} ${f1}.rap_nr > ${file_base}_R1_fuhsnn.fastq 
+
+   echo "done with rapsearch " 
+   date 
+
+   echo "tallying rapsearch vs. nr hits" 
+   tally_hits_universal.pl ${file_base}_R1_fuhsn.fastq.rap_nr  > ${file_base}_R1_fuhsn.fastq.rap_nr.tally  
+   tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.rap_nr  > ${file_base}_R1_fuhsn.fastq.rap_nr.desc_tally  
+   tally_hits_universal.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.rap_nr > ${file_base}_R1_fuhsn.fastq.rap_nr.tab_tree_tally 
+
+   echo "done tallying" 
+   date 
+
+   echo "pulling out virus-derived reads (RAPSearch)" 
+
+   fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
+
+   # pull out virus-derived reads
+   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.rap_nr 
+
+   echo "done with read-based taxonomic assessment"
+   date
+
+
+} | tee -a $log

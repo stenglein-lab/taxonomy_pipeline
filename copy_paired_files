@@ -1,0 +1,14 @@
+#!/bin/bash
+
+destination_dir=$1
+
+if [ ! -d "$destination_dir" ]; then
+   echo "error: directory $destination_dir does not exist"
+	echo " "
+	echo "  usage: $0 <directory_to_which_to_copy_files>"
+	echo " "
+	exit
+fi
+
+
+cp contig_based_taxonomic_assessment read_based_taxonomic_assessment run_pipeline_one_sample run_preprocessing_pipeline_one_sample $*
