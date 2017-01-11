@@ -1,0 +1,10 @@
+#!/bin/bash
+
+bc=$1
+index=$2
+
+f1=${bc}_R1_fuh.fastq
+f2=${bc}_R2_fuh.fastq
+
+./run_bt_align_paired $f1 $f2 $index
+
