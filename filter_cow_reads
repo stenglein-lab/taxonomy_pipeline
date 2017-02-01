@@ -78,16 +78,16 @@ echo "filtering out B. taurus seqs from files $f1 and $f2 "
 echo "*****************************************************"
 
 # align R1 reads
-echo "bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time --al ${f1}.${output_suffix}_bt_hits.fastq --un ${f1}.${output_suffix}_bt_misses.fastq -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log"
-bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time --al ${f1}.${output_suffix}_bt_hits.fastq --un ${f1}.${output_suffix}_bt_misses.fastq -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log
+echo "bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log"
+bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log
 
 fasta_from_sam -f $f1 -r ${f1}.${output_suffix}_bt.sam > ${file_base}_R1_fuh1.fastq
 
 reconcile_read2_file ${file_base}_R1_fuh1.fastq ${file_base}_R2_fu.fastq f2 > ${file_base}_R2_fuh1.fastq
 
 f2=${file_base}_R2_fuh1.fastq
-echo "bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time --al ${f2}.${output_suffix}_bt_hits.fastq --un ${f2}.${output_suffix}_bt_misses.fastq -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log"
-bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time --al ${f2}.${output_suffix}_bt_hits.fastq --un ${f2}.${output_suffix}_bt_misses.fastq -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log
+echo "bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log"
+bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log
 
 f2_sam=${file_base}_R2_fuh1.fastq.${output_suffix}_bt.sam
 
