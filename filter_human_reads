@@ -1,0 +1,118 @@
+#!/bin/bash
+
+#
+# This script filters human sequences from a sequencing dataset by
+# alignment to the human genome sequence
+#
+# It is meant to work in the context of our lab's overall taxonomy pipeline
+#
+# Input: the file base name (file_base)
+#
+# The script expects paired read fastq files named:
+# 
+#       ${file_base}_R1_fu.fastq
+#       ${file_base}_R2_fu.fastq
+#
+# E.g., my_sample_R1_fu.fastq    my_sample_R2_fu.fastq
+#
+# The _fu  in the filenames indicate that they have been quality filtered (f) and collapsed
+# to unique sequences (u).
+#
+# The script uses bowtie2 to align the reads in these files against the indicated genome
+# and produces 2 files that contain all the non-aligning reads.  These files have _fuh suffixes
+# to indicate that they have been host filtered(h)
+#
+# E.g., my_sample_R1_fuh.fastq    my_sample_R2_fuh.fastq
+#
+# Read pairs for which either the R1 or the R2 read align will be discarded
+#
+#
+# Dependencies: 
+#
+# (*) bowtie2 must be installed.  
+#
+# (*) This script calls other scripts, which should be in the user's PATH
+# 
+#   fasta_from_sam
+#   reconcile_read2_file 
+# 
+#
+#
+#    Mark Stenglein 
+#    March, 2016
+#
+#
+
+file_base=$1
+
+log=${file_base}.pipeline.log
+
+# ---------------------
+# Modifiable parameters
+# ---------------------
+
+# Location of index of genome assembly 
+btindex=/home/databases/human/GCRh38
+
+# output suffix of files created
+output_suffix=human_genome
+
+# num_cpu for running bowtie2
+num_cpu=12
+
+# minimum alignment score
+# a score of 60 corresponds to approximately a perfect match over 30 nt
+min_score=60
+
+
+# bracket to redirect all stderr and stdout output to log file
+{
+
+f1=${file_base}_R1_fu.fastq
+f2=${file_base}_R2_fu.fastq
+
+echo "************************************************"
+echo "filtering out human seqs from files $f1 and $f2 "
+echo "************************************************"
+
+### # run STAR aligner to align seqs in a fasta file to human genome
+
+### f1=$1
+### f2=$2
+### index_dir=/home/databases/human/
+### num_cpu=12
+### output_prefix="./${f1}_star_human_genome_"
+### 
+### # Could change genomeLoad to LoadAndKeep if running a bunch of these in parallel
+### 
+### STAR --runThreadN $num_cpu \
+     ### --runMode alignReads \
+	  ### --genomeDir $index_dir \
+	  ### --genomeLoad LoadAndRemove \
+	  ### --readFilesIn $f1 \
+	  ### --outFileNamePrefix $output_prefix | tee ${f1}.star.log
+### 
+
+# align R1 reads
+echo "bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log"
+bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log
+
+fasta_from_sam -f $f1 -r ${f1}.${output_suffix}_bt.sam > ${file_base}_R1_fuh1.fastq
+
+reconcile_read2_file ${file_base}_R1_fuh1.fastq ${file_base}_R2_fu.fastq f2 > ${file_base}_R2_fuh1.fastq
+
+f2=${file_base}_R2_fuh1.fastq
+echo "bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log"
+bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log
+
+f2_sam=${file_base}_R2_fuh1.fastq.${output_suffix}_bt.sam
+
+fasta_from_sam -f ${file_base}_R2_fuh1.fastq -r $f2_sam > ${file_base}_R2_fuh.fastq
+
+reconcile_read2_file ${file_base}_R2_fuh.fastq ${file_base}_R1_fuh1.fastq > ${file_base}_R1_fuh.fastq
+
+
+} 2>&1  | tee -a $log  # output tee'd to a logfile
+
+
+
