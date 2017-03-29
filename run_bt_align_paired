@@ -38,6 +38,6 @@ $cmd 2>> $log_f
 
 # process output
 samtools view -S -b ${output_prefix}.sam > ${output_prefix}.bam
-samtools sort ${output_prefix}.bam ${output_prefix}_sorted
+samtools sort ${output_prefix}.bam > ${output_prefix}_sorted.bam
 samtools index ${output_prefix}_sorted.bam
 samtools depth ${output_prefix}_sorted.bam > ${output_prefix}.depth
