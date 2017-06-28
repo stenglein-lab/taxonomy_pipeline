@@ -79,5 +79,6 @@ host_filtering_script=filter_ag_reads
 ./contig_based_taxonomic_assessment $id
 
 # taxonomically assess singletons (reads that don't map to contigs)
-./read_based_taxonomic_assessment $id
+# uncomment the line below to run read-based tax assessment
+# ./read_based_taxonomic_assessment $id
 
