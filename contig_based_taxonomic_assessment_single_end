@@ -131,44 +131,43 @@ f1=${file_base}_R1_fuh.fastq
    # ***************************************************************************
    distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.bn_nt
 
-   # **************************************************
-   # run RAPSEARCH to identify protein-level alignments
-   # **************************************************
+   # ************************************************
+   # run diamond to identify protein-level alignments
+   # ************************************************
 
-   echo "rapsearch remaining contigs for $file_base vs. nr" 
-   date 
+   echo "diamond remaining contigs for $file_base vs. nr" 
+   date
 
    f1=${file_base}_spade_contigs_n.fa
 
-   rap_index=/home/databases/nr_nt/nr_rap_index
+   dmd_index=/home/databases/nr_nt/nr.dmnd
 
-   # -l 20 -> length 20 (mininmum amino acid alignment) 
-   echo "rapsearch -q $f1 -d $index  -z 24 -l 20 -t n -v 10 -b 10 -s f -e 1e-2  -o ${f1}.rap_nr"
-   rapsearch -q $f1 -d $rap_index  -z 24 -l 20 -t n  -v 10 -b 10 -s f -e 1e-2  -o ${f1}.rap_nr
+   echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
+   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
 
-   # contigs with no good hit by blastn vs. nt or rapsearch vs. nr
-   fasta_from_blast -r -f ${f1} ${f1}.rap_nr.m8 > ${file_base}_spade_contigs_nn.fa
+   # contigs with no good hit by blastn vs. nt or diamond vs. nr
+   fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_spade_contigs_nn.fa
 
-   echo "done with rapsearch for $file_base" 
-   date 
+   echo "done with diamond for $file_base" 
+   date
 
    # *******************************************
    # Taxonomic assessment of aa-based alignments
    # *******************************************
    echo "tallying rapsearch vs. nr hits" 
-   tally_hits_universal.pl -w $weights_file ${f1}.rap_nr.m8 > ${f1}.rap_nr.tally
-   tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.rap_nr.m8 > ${f1}.rap_nr.desc_tally
-   tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.rap_nr.m8 > ${f1}.rap_nr.tab_tree_tally
+   tally_hits_universal.pl -w $weights_file ${f1}.dmd_nr > ${f1}.dmd_nr.tally
+   tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.dmd_nr > ${f1}.dmd_nr.desc_tally
+   tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.dmd_nr > ${f1}.dmd_nr.tab_tree_tally
 
    echo "done tallying" 
-   date 
+   date
 
-   echo "pulling out virus-derived reads (RAPSearch)" 
+   echo "pulling out virus-derived reads (diamond)" 
 
    # ***************************************************************************
    # pull out virus-derived reads - this will create a file for each viral taxon
    # ***************************************************************************
-   distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.rap_nr.m8
+   distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.dmd_nr
 
    echo "done with contig-based taxonomic assessment for $file_base"
    date
