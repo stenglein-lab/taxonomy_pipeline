@@ -82,9 +82,9 @@ log=${file_base}.pipeline.log
 
    echo "tallying gsnap vs. nt hits" 
    date 
-   tally_hits_universal.pl ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
-   tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
-   tally_hits_universal.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   tally_hits_universal.pl -lca ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   tally_hits_universal.pl -lca -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   tally_hits_universal.pl -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
 
    # pull out hits to taxa of interest
    fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
@@ -136,9 +136,9 @@ log=${file_base}.pipeline.log
 
    # todo: deal w/ R1/R2 concordance/discordance/tax-assignment more elegantly
    echo "tallying diamond vs. nr hits" 
-   tally_hits_universal.pl ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
-   tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
-   tally_hits_universal.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   tally_hits_universal.pl -lca ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   tally_hits_universal.pl -lca -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   tally_hits_universal.pl -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
 
    echo "done tallying" 
    date 
