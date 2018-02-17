@@ -7,8 +7,9 @@ do
    id="$line"
 
 	# Illumina replaces _ and . with - for some annoying reason
-	
-	butchered_id=${id//_/-}
+
+	butchered_id=${id}
+	# butchered_id=${id//_/-}
 	butchered_id=${butchered_id//./-}
 
 	matching_files=`ls ${butchered_id}_*R1*fastq | wc -l`
