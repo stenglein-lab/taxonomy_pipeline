@@ -1,6 +1,6 @@
-# Stenglein lab taxonomic assessment pipeline
+## Stenglein lab taxonomic assessment pipeline
 
-This is the pipeline used in the Stenglein lab to taxonomically classify sequences in NGS datasets.
+This is the pipeline used in the [Stenglein lab](http://www.stengleinlab.org) to taxonomically classify sequences in NGS datasets.
 
 This pipeline has been reported in a number of [publications](https://www.stengleinlab.org/papers/) from our lab.
 
@@ -45,3 +45,4 @@ home dir
 
 We are working to make this pipeline more portable and welcome your feedback in the meantime.
 
+This script can be run in parallel on multiple datasets using a tool like [gnu parallel](https://www.gnu.org/software/parallel/).  We usually run it via our own [simple scheduler](https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/simple_scheduler)
