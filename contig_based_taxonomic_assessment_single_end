@@ -2,7 +2,7 @@
 
 #
 # This script uses the SPADES assembler to create contigs from a fastq file and then
-# uses blastn and then rapsearch to try to taxonomically assign the contigs.
+# uses blastn and then diamond to try to taxonomically assign the contigs.
 #
 # It also maps individual reads back to to contigs to identify non-aligning reads and to 
 # assess how many reads were collapsed into contigs
@@ -10,7 +10,7 @@
 # After assembly, it uses blastn to align the contigs to the nt database and pulls out reads that
 # produce good nt-level alignments
 #
-# It then uses rapsearch to align the remaining contigs to the nr database. 
+# It then uses diamond to align the remaining contigs to the nr database. 
 #
 # After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
 # created and contigs aligning to viral taxa are output to files
@@ -28,7 +28,7 @@
 #  bowtie2
 #  bowtie2-build
 #  blastn
-#  rapsearch
+#  diamond
 #
 #  Scripts I've written:
 #
@@ -154,7 +154,7 @@ f1=${file_base}_R1_fuh.fastq
    # *******************************************
    # Taxonomic assessment of aa-based alignments
    # *******************************************
-   echo "tallying rapsearch vs. nr hits" 
+   echo "tallying diamond vs. nr hits" 
    tally_hits_universal.pl -w $weights_file ${f1}.dmd_nr > ${f1}.dmd_nr.tally
    tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.dmd_nr > ${f1}.dmd_nr.desc_tally
    tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.dmd_nr > ${f1}.dmd_nr.tab_tree_tally

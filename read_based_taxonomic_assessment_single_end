@@ -6,7 +6,7 @@
 # It uses gsnapl to align reads to the nt database and pulls out reads that
 # produce good nt-level alignments
 #
-# It then uses rapsearch to align the remaining reads to the nr database. 
+# It then uses diamond to align the remaining reads to the nr database. 
 #
 # After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
 # created and contigs aligning to viral taxa are output to files
@@ -26,7 +26,7 @@
 #  gsnapl
 #
 #  blastn
-#  rapsearch
+#  diamond
 #
 #  Scripts I've written:
 #
@@ -77,28 +77,27 @@ log=${file_base}.pipeline.log
    # pull out virus-derived reads
    distribute_fasta_by_gsnap_taxid.pl -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
 
-   # RAPSEARCH
+   # diamond
 
    f1=${file_base}_R1_fuhsn.fastq
 
-   echo "rapsearch remaining hits for $file_base ($f1) vs. nr" 
+   echo "diamond remaining hits for $file_base ($f1) vs. nr" 
+   date
+
+   dmd_index=/home/databases/nr_nt/nr.dmnd
+
+   echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
+   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
+
+   fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_R1_fuhsnn.fastq
+
+   echo "done with diamond " 
    date 
 
-   rap_index=/home/databases/nr_nt/nr_rap_index
-
-   echo "rapsearch ${file_base}_R1_fuhsn.fastq"
-   # -l 20 -> length 20 (mininmum amino acid alignment) 
-   rapsearch -q $f1 -d $rap_index -u 1  -z 24 -l 20 -t n -t q -v 10 -b 10 -s f -e 1e-2  > ${f1}.rap_nr
-
-   fasta_from_blast -r -f ${f1} ${f1}.rap_nr > ${file_base}_R1_fuhsnn.fastq 
-
-   echo "done with rapsearch " 
-   date 
-
-   echo "tallying rapsearch vs. nr hits" 
-   tally_hits_universal.pl ${file_base}_R1_fuhsn.fastq.rap_nr  > ${file_base}_R1_fuhsn.fastq.rap_nr.tally  
-   tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.rap_nr  > ${file_base}_R1_fuhsn.fastq.rap_nr.desc_tally  
-   tally_hits_universal.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.rap_nr > ${file_base}_R1_fuhsn.fastq.rap_nr.tab_tree_tally 
+   echo "tallying diamond vs. nr hits" 
+   tally_hits_universal.pl ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.tally  
+   tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
+   tally_hits_universal.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr > ${file_base}_R1_fuhsn.fastq.dmd_nr.tab_tree_tally 
 
    echo "done tallying" 
    date 
@@ -108,7 +107,7 @@ log=${file_base}.pipeline.log
    fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.rap_nr 
+   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.dmd_nr 
 
    echo "done with read-based taxonomic assessment"
    date

@@ -16,10 +16,10 @@
 #  (*) filtering of host sequences [via the script specified by host_filtering_script]
 #
 #  (*) de novo assembly of remaining reads and taxonomic assement of contigs, first by nt to nt alignments (blastn) and then by 
-#      translated-nt to protein alignments (rapsearch)  [contig_based_taxonomic_assessment]
+#      translated-nt to protein alignments (diamond)  [contig_based_taxonomic_assessment]
 #
 #  (*) taxonomic assement of non contig-mapping reads, first by nt to nt alignments (blastn) and then by translated-nt to protein 
-#      alignments (rapsearch)  [contig_based_taxonomic_assessment]
+#      alignments (diamond)  [contig_based_taxonomic_assessment]
 #
 #
 # This script depends on a number of other scripts that in turn also have dependencies (see individual scripts).  
