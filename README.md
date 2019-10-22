@@ -40,8 +40,10 @@ The main steaps in the pipeline are:
 
 
 Also, for the taxonomic tallying to work (tally_hits_universal.pl), it is necessary to tell PERL where to find certain
-perl modules by setting the  PERL5LIB environmental variable, for example as follows (put this line in the .bashrc file in your 
-home dir
+perl modules by setting the  PERL5LIB environmental variable, for example by adding the following line in the .bashrc file in your 
+home dir:
+
+```export PERL5LIB=$PERL5LIB:~/bin```
 
 We are working to make this pipeline more portable and welcome your feedback in the meantime.
 
