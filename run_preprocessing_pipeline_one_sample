@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #
 # This script runs a "pre-processing" analysis pipeline on a paired-end sequencing dataset.  

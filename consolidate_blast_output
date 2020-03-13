@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # This script reads a blast output (-m8, -m9) file and 
 # and outputs only the top hit (or hits in case of tie) 

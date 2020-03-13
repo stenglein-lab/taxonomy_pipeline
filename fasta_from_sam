@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # given a bowtie output (SAM) file and fasta file(s) used as input
 # to bowtie, create a filtered output fasta file based on 

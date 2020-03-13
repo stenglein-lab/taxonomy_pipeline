@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # given a GI, return its description
 # need to search by NCBI db (nuc or prot, so have to specify)

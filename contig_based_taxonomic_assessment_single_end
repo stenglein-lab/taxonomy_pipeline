@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #
 # This script uses the SPADES assembler to create contigs from a fastq file and then

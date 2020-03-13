@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # given a blast file, output the records from the
 # fasta or fastq file used as input to the blast

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # This script parses a blast (m8) or sam output file and 
 # tallies the hits by taxonomy.  #

@@ -1,10 +1,45 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-bc=$1
-index=$2
+# This is a helper script to run bowtie2 to map single-end read files to an index
+#
+# usage ./run_bt <r1_fastq> <bt_index>
+#
+# Mark Stenglein 2015
 
-f1=${bc}_R1_fuh.fastq
-f2=${bc}_R2_fuh.fastq
+f1=$1
 
-./run_bt_align_paired $f1 $f2 $index
+bt_index=$2
+index_name=${bt_index##/*/}
+output_prefix=${f1}.${index_name}
 
+log_f=${output_prefix}.bt_log
+
+# setup bowtie command
+cmd="bowtie2 
+ -x $bt_index
+ -q
+ -U $f1 
+ --local
+ --score-min C,120,1
+ --no-unal
+ --time
+ --al ${output_prefix}.hits.fastq
+ --threads 12
+ -S ${output_prefix}.sam"
+
+# run bowtie command and save it to log file
+echo $cmd
+echo $0 $* > $log_f
+echo $cmd >> $log_f
+$cmd 2>> $log_f
+
+# process output using samtools: sort, convert to bam, and calculate depth
+samtools view -S -b ${output_prefix}.sam > ${output_prefix}.bam
+samtools sort ${output_prefix}.bam > ${output_prefix}_sorted.bam
+samtools index ${output_prefix}_sorted.bam
+samtools depth ${output_prefix}_sorted.bam > ${output_prefix}.depth
+
+# output the name of the main output file (sorted bam)
+echo " "
+echo " "
+echo ${output_prefix}_sorted.bam 

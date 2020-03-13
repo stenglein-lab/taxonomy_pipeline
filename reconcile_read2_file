@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # This script takes two fastx files as an argument
 # and outputs all those records in the 2nd file

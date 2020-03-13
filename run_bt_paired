@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
+# This is a helper script to run bowtie2 to map paired read files to an index
+#
+# usage ./run_bt_align_paired <r1_fastq> <r2_fastq> <bt_index>
+#
+# Mark Stenglein 2015
 
 f1=$1
 f2=$2
@@ -14,30 +20,34 @@ log_f=${output_prefix}.bt_log
 # this_file=`basename $0`
 # cp $this_file ${this_file}
 
+# setup bowtie command
 cmd="bowtie2 
  -x $bt_index
  -q
  -1 $f1 
  -2 $f2
- --rg-id 1
- --rg SM:1
  --local
- --qc-filter
  --score-min C,120,1
  --no-unal
- --maxins 700
  --time
  --al-conc ${output_prefix}.conc_hits.fastq
  --threads 24
  -S ${output_prefix}.sam"
 
+
+# run bowtie command and save it to log file
 echo $cmd
 echo $0 $* > $log_f
 echo $cmd >> $log_f
 $cmd 2>> $log_f
 
-# process output
+# process output using samtools: sort, convert to bam, and calculate depth
 samtools view -S -b ${output_prefix}.sam > ${output_prefix}.bam
 samtools sort ${output_prefix}.bam > ${output_prefix}_sorted.bam
 samtools index ${output_prefix}_sorted.bam
 samtools depth ${output_prefix}_sorted.bam > ${output_prefix}.depth
+
+# output the name of the main output file (sorted bam)
+echo " "
+echo " "
+echo ${output_prefix}_sorted.bam 

@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # A program to split up reads based on taxid of best blast hit(s)
 #

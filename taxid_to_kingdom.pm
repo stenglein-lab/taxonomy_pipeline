@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 #
 # This script converts a taxid at species level or lower
 # into a kingdom 

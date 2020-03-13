@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # this script counts the aligned-to subject IDs in a SAM file and outputs a sorted tally
 # 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 #
 # This is the master script for running a pipeline, the main goal of which is 
