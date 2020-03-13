@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# create several indexes from nr and nt databases
+# Mark Stenglein 8.6.2013  
+#
+# This script builds the indexes in a dated sub-directory
+# and then copies them back to main directory, overwriting 
+# old versions of the indexes.
+#
+# NOTE that this could possibly (?) interfere w/ running 
+# diamond, gsnapl, hisat, etc. processes
+#
+
+# build database indexes
+echo "*************************************************"
+echo "*** building indexes from nr and nt databases ***"
+echo "*************************************************"
+
+# build new indices in a separate directory
+# create it and then cd there
+
+today=`date +%Y_%m_%d`
+index_dir=indexes_${today}
+mkdir $index_dir
+cd $index_dir
+
+# download nr & nt dbs in fasta format 
+wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
+wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nt.gz
+gunzip nt.gz 
+gunzip nr.gz 
+
+# rename to have .fasta extension
+mv nt nt.fasta
+mv nr nr.fasta
+
+echo "creating diamond index of nr database"
+date
+diamond makedb --in nr.fasta -d nr
+mv nr.dmnd ..
+
+echo "creating GSNAP index of nt database"
+date
+gmap_build -D . -d nt_gsnap nt.fasta -L
+# delete the old index
+rm -rf ../nt_gsnap
+# move the new one into place
+mv -f nt_gsnap ..
+
+## echo "creating HISAT/Bowtie2 index of nt database"
+## date
+## hisat-build nt.fasta nt
+## # hisat nt index
+## mv nt*.bt2l ..
+## mv nt.sources ..
+
+# fasta files
+mv nr.fasta ..
+mv nt.fasta ..
+
+echo "done rebuilding indexes"
+date
+
+echo "done rebuilding indexes" > indexes_built.txt
+date >> indexes_built.txt
+
+ln -s indexes_built.txt ../

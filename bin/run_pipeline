@@ -9,7 +9,7 @@
 #
 #  (*) quality assessment w/ FastQC
 #
-#  (*) trimming or removal of low quality sequences and collapse of non-unique read pairs [run_preprocessing_pipeline_one_sample]
+#  (*) trimming or removal of low quality sequences and collapse of non-unique read pairs [run_preprocessing_pipeline]
 #
 #  (*) quality assessment w/ FastQC
 #
@@ -24,15 +24,8 @@
 #
 # This script depends on a number of other scripts that in turn also have dependencies (see individual scripts).  
 #
-# Also, for the taxonomic tallying to work (tally_hits_universal.pl), it is necessary to tell PERL where to find certain
-# perl modules by setting the  PERL5LIB environmental variable, for example as follows (put this line in the .bashrc file in your 
-# home dir
-# 
-# export PERL5LIB=$PERL5LIB:/home/mdstengl/bin
-#
 # The major modifiable step is to specify the host_filtering_script parameter, which
 # should refer to a script that will remove host reads (see below)
-#
 #
 
 # this is the sample ID and the base name of the file.  This script expects paired read files to exist in the same
@@ -46,7 +39,7 @@ mkdir -p fastqc_post
 fastqc -o fastqc_pre ${id}_R1.fastq ${id}_R2.fastq 
 
 # run quality trimming, adapter trimming, unique collapsing script for this sample -> output ${id}_R[12]_fu.fastq
-./run_preprocessing_pipeline_one_sample $id
+./run_preprocessing_pipeline $id
 
 # post-filtering FastQC 
 fastqc -o fastqc_post ${id}_R1_fu.fastq ${id}_R2_fu.fastq 

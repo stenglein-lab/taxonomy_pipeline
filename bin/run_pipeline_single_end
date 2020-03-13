@@ -9,7 +9,7 @@
 #
 #  (*) quality assessment w/ FastQC
 #
-#  (*) trimming or removal of low quality sequences and collapse of non-unique reads [run_preprocessing_pipeline_one_sample]
+#  (*) trimming or removal of low quality sequences and collapse of non-unique reads [run_preprocessing_pipeline]
 #
 #  (*) quality assessment w/ FastQC
 #
@@ -38,7 +38,7 @@ mkdir -p fastqc_post
 fastqc -o fastqc_pre ${id}_R1.fastq 
 
 # run quality trimming, adapter trimming, unique collapsing script for this sample -> output ${id}_R[12]_fu.fastq
-./run_preprocessing_pipeline_single_end_one_sample $id
+./run_preprocessing_pipeline_single_end $id
 
 # post-filtering FastQC 
 fastqc -o fastqc_post ${id}_R1_fu.fastq 

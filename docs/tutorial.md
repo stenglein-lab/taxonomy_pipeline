@@ -72,51 +72,130 @@ conda activate taxonomy
 ```
 The conda command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
 
+Note that the input to the pipeline is the name of the dataset, and the pipeline script expects a file whose name is `<dataset>_R1.fastq`.  For a paired-end analysis, the equivalent command would be `./run_pipeline <dataset_name>` and the pipeline would expect that two files exist: `<dataset_name>_R1.fastq` and `<dataset_name>_R2.fastq`
+
 The pipeline will take a while to run, maybe 30 minutes for a dataset this size on this server.   
 
 Running the pipeline this way doesn't really help you understand what's happening, so let's consider the steps individually.
 
-###
-
-The main default pipeline steps are:
+### The main pipeline steps are:
 
 1. [Initial QC of reads.](#section1)
-2. [Filtering of low quality and adapter sequences.](#section2)
+2. [Filtering of low quality and adapter sequences and duplicate collapsing.](#section2)
 3. [Post-filtering QC check.](#section3)
-4. [Collapsing of duplicate reads (likely PCR duplicates).](#section4)
-5. [Filtering of host-derived reads.](#section5)
-6. [Assembly of remaining host-filtered reads.](#section6)
-7. [BLASTN search of contigs against the NCBI nucleotide (nt) database.](#section7)
-8. [Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.](#section8)
-9. [Extraction of putative virus contigs.](#section9)
-10. [Diamond (BLASTX) search of NCBI protein (nr) database.](#section10)
-11. [Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.](#section11)
-12. [Extraction of putative virus contigs.](#section12)
-13. [Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).](#section13)
+4. [Filtering of host-derived reads.](#section4)
+5. [Assembly of remaining host-filtered reads.](#section5)
+6. [BLASTN search of contigs against the NCBI nucleotide (nt) database.](#section6)
+7. [Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.](#section7)
+8. [Extraction of putative virus contigs.](#section8)
+9. [Diamond (BLASTX) search of NCBI protein (nr) database.](#section9)
+10. [Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.](#section10)
+11. [Extraction of putative virus contigs.](#section11)
+12. [Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).](#section12)
 
-
-Let's go through these step by step:
+Let's consider these steps one at a time:
 
 ### <a name="section1"></a> 1. Initial QC of reads. 
 
-The first thing the pipeline does is 
+The first thing the pipeline does is use [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/) to do a preliminary QC on the input sequence data.  The output of the fastqc command will be an HTML file in a new `fastqc_pre` directory.  
 
-### <a name="section2"></a> 2. Filtering of low quality and adapter sequences
+Running this command will recapitulate what the pipeline does:
+```
+mkdir -p fastqc_pre 
+fastqc -o fastqc_pre brazil_dros_pool_R1.fastq
+```
+
+In the pipeline, this command is run as one command in the larger [run_pipeline](../bin/run_pipeline) bash script.  See if you can find where it's run in that script by looking at [the file](./bin/run_pipeline) on github. 
+
+After fastqc completes, you should see a new html file if you run this command:
+```
+ls fastqc_pre
+```
+
+[Transfer this file](#section_transfer) to your own computer and open it in a web browser.  Here are some things to look for in the fastq report:
+
+- Basic Statistics: this will indicate how many reads there are in the dataset, what their lengths are, etc.
+- Per base sequence quality: an indication of the average basecall quality scores as a function of read length.  Hopefully much of your data will be in the green, but in any case, the pipeline trims off low quality parts off the ends of reads.
+- Per base sequence content: this the average percent of each of the 4 bases at each position in the reads.  These lines should be flat (base composition should be equal across reads in shotgun data) and the overall percentages should match the average GC content of the data.
+- Sequence duplication levels:  this will give you an indication of how many duplicated sequences are in your dataset.  The more cycles of PCR you do during library prep, the more duplicated sequences you will have (which is why it's good to minimize PCR during library prep).  Duplicated sequences don't really add independent information, so the pipeline removes them.
+- Over-represented sequences: sometimes these are highly duplicated sequences and sometimes they are adapter or rRNA sequences.  If you see over-represented sequences, you can blast them at the [NCBI website](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastSearch) to try to get an idea of what they are.
+- Adapter content: if your read length is longer than the insert size in your libraries, you will see adapter sequences in your dataset.  You definitely want to trim off adapter sequences because they derive from the sample you are sequencing, and the pipeline does this.
+
+### <a name="section2"></a> 2. Filtering of low quality and adapter sequences and duplicate collapsing
+
+In this step, the pipeline uses [cutadapt](https://cutadapt.readthedocs.io/en/stable/) to remove low quality and adapter bases from reads.  It then uses [cd-hit](https://github.com/weizhongli/cdhit) to collapse duplicate reads.
+
+These commands are part of the [run_preprocessing_pipeline_single_end script](../bin/run_preprocessing_pipeline_single_end), which is called from the main run_pipeline script.  For paired-end data, the script is [run_preprocessing_pipeline](../bin/run_preprocessing_pipeline).
+
+You can reproduce these commands manually by running:
+
+```
+ cutadapt -a AGATCGGAAGAGC -g GCTCTTCCGATCT -a AGATGTGTATAAGAGACAG -g CTGTCTCTTATACACATCT -q 30,30 --minimum-length 80 -u 1 -o brazil_dros_pool_R1_f.fastq brazil_dros_pool_R1.fastq
+```
+
+Breaking down this command (see the excellent [cutadapt documentation](https://cutadapt.readthedocs.io/en/stable/) for more info):
+
+- -a AGATCGGAAGAGC, etc.:  These are Illumina adapter sequences to be trimmed
+- q30,30: a quality score threshhold for trimming low quality bases 
+- --minimum-length 80: any read that is shorter than this length after trimming will be discarded
+- -u 1: always trim the last 3' base of the read, which is usually low quality . 
+- -o: Name of the output file.  Here `<dataset_name>_R1_f.fastq`  The `_f` indicates the reads have now been trimmed.
+
+Note that you are completely free to change these parameters.  Feel free to play around with them and re-run the command.
+
+Cutadapt will run for a couple of minutes.  When it's done it will output statistics about how much it trimmed.  Have a look at that output.  Does it make sense?  Did it trim adapters?  Low quality bases?  Where any reads too short?
+
+Now let's run [cd-hit-dup](https://github.com/weizhongli/cdhit/blob/master/doc/cdhit-user-guide.wiki)
+
+```
+cd-hit-dup -i brazil_dros_pool_R1_f.fastq -o brazil_dros_pool_R1_fu.fastq -e 2 -u 50
+```
+
+The command syntax here means that cd-hit-dup will collapse any reads that have 2 or fewer differences in their first 50 bases, likely PCR duplicates.
+
+You should now see 2 new files in your directory when you run `ls`: `brazil_dros_pool_R1_f.fastq` and `brazil_dros_pool_R1_fu.fastq`
+
+How big are these files compared to the original pre-trimming file?  How many reads are in each? 
+
 ### <a name="section3"></a> 3. Post-filtering QC check
-### <a name="section4"></a> 4. Collapsing of duplicate reads (likely PCR duplicates).
-### <a name="section5"></a> 5. Filtering of host-derived reads.
-### <a name="section6"></a> 6. Assembly of remaining host-filtered reads.
-### <a name="section7"></a> 7. BLASTN search of contigs against the NCBI nucleotide (nt) database.
-### <a name="section8"></a> 8. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
-### <a name="section9"></a> 9. Extraction of putative virus contigs
-### <a name="section10"></a> 10. Diamond (BLASTX) search of NCBI protein (nr) database.
-### <a name="section11"></a> 11. Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.
-### <a name="section12"></a> 12. Extraction of putative virus contigs
-### <a name="section13"></a> 13. Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).
+
+The pipeline next runs fastqc again to double-check that trimming and duplicate collapsing actually worked.  Run fastqc again like this:
+
+```
+mkdir -p fastqc_post
+fastqc brazil_dros_pool_R1_fu.fastq -o fastqc_post
+```
+
+There should be a new html file in the new fastqc_post directory.  Transfer it to your computer and look at it.  Did trimming and collapsing steps have the desired impact?
+
+### <a name="section4"></a> 4. Filtering of host-derived reads.
+
+The next step in the pipeline is to remove host-derived reads. The host-derived reads might be interesting, but the pipeline's primary purpose is to taxonomically classify non-host reads.
+
+The [run_pipeline_single_end script](../bin/run_pipeline_single_end) is by default to filter out Drosophila (fly) reads.  This is the appropriate type of host filtering for our example dataset but obviously wouldn't always be the appropriate choice.  See [below](#section_different_host) for information about how to run this filtering for other hosts.
+
+The pipeline uses [bowtie2]() to map the reads to the [Drosophila melanogaster reference genome]().  Although these flies are not necessarily D. melanogaster, they are closely enough related that using this reference geneome will work well.  
+
+The main pipeline script calls [filter__fly_reads_single_end](../bin/filter_fly_reads_single_end) to accomplish this.  See if you can find both where the main pipeline calls this script and have a look at this host filtering script itself.
+
+Let's recreate that host filtering by running this command.
+``` 
+```
+
+### <a name="section5"></a> 5. Assembly of remaining host-filtered reads.
+### <a name="section6"></a> 6. BLASTN search of contigs against the NCBI nucleotide (nt) database.
+### <a name="section7"></a> 7. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
+### <a name="section8"></a> 8. Extraction of putative virus contigs
+### <a name="section9"></a> 9. Diamond (BLASTX) search of NCBI protein (nr) database.
+### <a name="section10"></a> 10. Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.
+### <a name="section11"></a> 11. Extraction of putative virus contigs
+### <a name="section12"></a> 12. Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).
 
 
 
 
 
-### Filtering a different host species
-### Using your own data
+### <a name="section_different_host"></a>Filtering a different host species
+### <a name="section_own_data"></a>Using your own data
+### <a name="section_transfer"></a>Transferring files
+### <a name="section_simple_scheduler"></a>Running the pipeline on multiple datasets

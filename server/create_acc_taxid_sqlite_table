@@ -1,0 +1,56 @@
+#!/bin/bash -x
+
+# CREATE TABLE log_entry ( <snip> );
+# .separator "\t"
+# .import logfile.log log_entry
+# 
+# EOF
+
+# get rid of old temporary db if it exists
+rm -f ncbi_taxonomy.sqlite3.temp
+
+sqlite3 -batch ncbi_taxonomy.sqlite3.temp <<"EOF"
+
+CREATE TABLE acc_taxid_map (
+  'acc' char(12) primary key,
+  'acc_ver' char(15), 
+  'taxid' integer,
+  'gi' integer 
+);
+
+.separator "\t"
+
+-- populate table by importing nucl accession -> taxid map
+.import nucl_gb.accession2taxid acc_taxid_map
+
+-- get rid of record corresponding to header row
+delete from acc_taxid_map where acc = 'accession';
+
+-- populate table by importing protein accession -> taxid map
+.import prot.accession2taxid acc_taxid_map
+
+-- get rid of record corresponding to header row
+delete from acc_taxid_map where acc = 'accession';
+
+EOF
+
+# TODO: overwrite db with temp db ?
+
+
+
+
+# .import nucl_gb.accession2taxid acc_taxid_map
+# .import prot.accession2taxid acc_taxid_map
+
+# CREATE TABLE `acc_taxid_map_temp` (
+   # `acc` CHAR(12), 
+   # `acc_ver` CHAR(15), 
+   # `taxid` INTEGER,
+   # `gi` INTEGER, 
+   # PRIMARY KEY (`acc`)
+# );
+
+# load data local infile '/home/databases/NCBI_Taxonomy/nucl_gb.accession2taxid' into table acc_taxid_map_temp IGNORE 1 LINES;
+# load data local infile '/home/databases/NCBI_Taxonomy/prot.accession2taxid' into table acc_taxid_map_temp IGNORE 1 LINES;
+
+
