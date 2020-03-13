@@ -40,7 +40,7 @@ cd taxo_tutorial
 
 Now, let's copy this example dataset to the directory we are in (our present working directory = .)
 ```
-cp /data/training/taxonomy_pipeline/brazil_dros_pool_R1.fastq .
+cp /data/training/taxonomy_pipeline/dros_pool_R1.fastq .
 ```
 
 You should see this file if you type the command `ls -lh` and you should see that its size is about 1.4Gb.  
@@ -68,7 +68,7 @@ You should see a bunch of scripts now in the present working directory that cons
 #### To run the pipeline on this example dataset, you can run these commands:
 ```
 conda activate taxonomy 
-./run_pipeline_single_end brazil_dros_pool
+./run_pipeline_single_end dros_pool
 ```
 The conda command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
 
@@ -102,7 +102,7 @@ The first thing the pipeline does is use [FastQC](https://www.bioinformatics.bab
 Running this command will recapitulate what the pipeline does:
 ```
 mkdir -p fastqc_pre 
-fastqc -o fastqc_pre brazil_dros_pool_R1.fastq
+fastqc -o fastqc_pre dros_pool_R1.fastq
 ```
 
 In the pipeline, this command is run as one command in the larger [run_pipeline](../bin/run_pipeline) bash script.  See if you can find where it's run in that script by looking at [the file](./bin/run_pipeline) on github. 
@@ -130,7 +130,7 @@ These commands are part of the [run_preprocessing_pipeline_single_end script](..
 You can reproduce these commands manually by running:
 
 ```
- cutadapt -a AGATCGGAAGAGC -g GCTCTTCCGATCT -a AGATGTGTATAAGAGACAG -g CTGTCTCTTATACACATCT -q 30,30 --minimum-length 80 -u 1 -o brazil_dros_pool_R1_f.fastq brazil_dros_pool_R1.fastq
+ cutadapt -a AGATCGGAAGAGC -g GCTCTTCCGATCT -a AGATGTGTATAAGAGACAG -g CTGTCTCTTATACACATCT -q 30,30 --minimum-length 80 -u 1 -o dros_pool_R1_f.fastq dros_pool_R1.fastq
 ```
 
 Breaking down this command (see the excellent [cutadapt documentation](https://cutadapt.readthedocs.io/en/stable/) for more info):
@@ -148,12 +148,12 @@ Cutadapt will run for a couple of minutes.  When it's done it will output statis
 Now let's run [cd-hit-dup](https://github.com/weizhongli/cdhit/blob/master/doc/cdhit-user-guide.wiki)
 
 ```
-cd-hit-dup -i brazil_dros_pool_R1_f.fastq -o brazil_dros_pool_R1_fu.fastq -e 2 -u 50
+cd-hit-dup -i dros_pool_R1_f.fastq -o dros_pool_R1_fu.fastq -e 2 -u 50
 ```
 
 The command syntax here means that cd-hit-dup will collapse any reads that have 2 or fewer differences in their first 50 bases, likely PCR duplicates.
 
-You should now see 2 new files in your directory when you run `ls`: `brazil_dros_pool_R1_f.fastq` and `brazil_dros_pool_R1_fu.fastq`
+You should now see 2 new files in your directory when you run `ls`: `dros_pool_R1_f.fastq` and `dros_pool_R1_fu.fastq`
 
 How big are these files compared to the original pre-trimming file?  How many reads are in each? 
 
@@ -163,7 +163,7 @@ The pipeline next runs fastqc again to double-check that trimming and duplicate 
 
 ```
 mkdir -p fastqc_post
-fastqc brazil_dros_pool_R1_fu.fastq -o fastqc_post
+fastqc dros_pool_R1_fu.fastq -o fastqc_post
 ```
 
 There should be a new html file in the new fastqc_post directory.  Transfer it to your computer and look at it.  Did trimming and collapsing steps have the desired impact?
@@ -174,16 +174,60 @@ The next step in the pipeline is to remove host-derived reads. The host-derived 
 
 The [run_pipeline_single_end script](../bin/run_pipeline_single_end) is by default to filter out Drosophila (fly) reads.  This is the appropriate type of host filtering for our example dataset but obviously wouldn't always be the appropriate choice.  See [below](#section_different_host) for information about how to run this filtering for other hosts.
 
-The pipeline uses [bowtie2]() to map the reads to the [Drosophila melanogaster reference genome]().  Although these flies are not necessarily D. melanogaster, they are closely enough related that using this reference geneome will work well.  
+The pipeline uses [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) to map the reads to the [Drosophila melanogaster reference genome](https://www.ncbi.nlm.nih.gov/genome/?term=txid7227[Organism:noexp]).  Although these flies are not necessarily _D. melanogaster_, they are closely enough related that using this reference geneome will work well.  
 
-The main pipeline script calls [filter__fly_reads_single_end](../bin/filter_fly_reads_single_end) to accomplish this.  See if you can find both where the main pipeline calls this script and have a look at this host filtering script itself.
+The main pipeline script calls [filter_fly_reads_single_end](../bin/filter_fly_reads_single_end) to accomplish this.  See if you can find both where the main pipeline calls this script and have a look at this host filtering script itself.
 
 Let's recreate that host filtering by running this command.
 ``` 
+bowtie2 -x /home/databases/fly/fly_genome --local -q -U dros_pool_R1_fu.fastq --sensitive --score-min C,60,0 --time --un dros_pool_R1_fuh.fastq -p 12 > /dev/null 2> dros_pool_R1_fu.fastq.fly_genome_bt.log
 ```
 
+Let's break down this command:
+
+- -x /home/databases/fly/fly_genome: this specify the reference genome to which bowtie will map reads.  See [below](#section_different_host) for info on using other genomes.
+- --local: this tells bowtie to not force the whole read to map.  Part of the read mapping is enough.
+- -q: the input is fastq
+- -U dros_pool_R1_fu.fastq: the name of the file containing (U)npaired reads that will be mapped.
+- --sensitive: this tells bowtie to map with increased sensitivity (more likelty to map a read).  Causes it to run slower than it could.
+- --score-min C,60,0: this requires a minimum mapping score of 60: about 30 bp of perfect alignment (though mismatches are allowed).  
+- --un dros_pool_R1_fuh.fastq: this tells bowtie to output unmapped reads (non-host reads) to this `_fuh.fastq` file.  These are the reads we will analyze in subsequent steps.
+- -p 12: use 12 threads (~CPUs) to run faster.  
+- >/dev/null: don't actually store the mapping information.  If you cared more about the host reads, you could change this to store the information. 
+
+See the bowtie2 manual for more info about all these settings.
+
+The main output that we care about for this command will be the dros_pool_R1_fuh.fastq reads that didn't map to the fly genome. These are the (presumably) non-host reads that we will analyze in the rest of the pipeline.  How many reads are in this file: in other words, how many reads remain after host filtering?  What fraction of the original dataset is that?
+
+This command will also output a log file: dros_pool_R1_fu.fastq.fly_genome_bt.log  Have a look at it.  What percentage of reads mapped to the host genome?  
+
+
 ### <a name="section5"></a> 5. Assembly of remaining host-filtered reads.
+
+The next 6 steps are all done by a single script, [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  The commands run here are a bit more than it is convenient to run manually, so let's run the script as is, and talk about the various steps and their output.  
+
+Let's run the command.  
+```
+./contig_based_taxonomic_assessment dros_pool
+```
+
+This is going to be the slowest part of the pipeline and may take 20-30 min to complete (or longer).  
+
+The first thing you should see is the output from the [spades assembler](http://cab.spbu.ru/software/spades/). Spades will stitch together the overlapping short reads into longer contigs.  This process should take a couple minuts for the number of reads remaining in the `_fuh.fastq` file.   Spades has verbose output.
+
+After assembly is complete, you will see a new file in the directory named `dros_pool_spade_contigs.fa`. This is a fasta file containing the assembled contigs.  
+
+The pipeline then uses bowtie to map reads in the `fuh.fastq` file to the contigs.  The goals of this are:
+
+1. To determine how many reads were collapsed into each contig.
+2. To identify reads that didn't assemble into contigs (assembly requires a certain amount of coverage (overlap), so not all reads will assemble).  
+
+Once it seems like spade has completed, look for the `dros_pool_spade_contigs.fa` file, and have a look at it: `less dros_pool_spade_contigs.fa`.  How long are the longest contigs?  Can you tell how much coverage the different contigs have?
+
 ### <a name="section6"></a> 6. BLASTN search of contigs against the NCBI nucleotide (nt) database.
+
+Once contigs have been created, it is time to try to taxonomically categorize them. 
+
 ### <a name="section7"></a> 7. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
 ### <a name="section8"></a> 8. Extraction of putative virus contigs
 ### <a name="section9"></a> 9. Diamond (BLASTX) search of NCBI protein (nr) database.
@@ -199,3 +243,5 @@ Let's recreate that host filtering by running this command.
 ### <a name="section_own_data"></a>Using your own data
 ### <a name="section_transfer"></a>Transferring files
 ### <a name="section_simple_scheduler"></a>Running the pipeline on multiple datasets
+### <a name="section_tally"></a>Running custom tabulations
+### <a name="section_distribute"></a>Getting sequences for various taxa
