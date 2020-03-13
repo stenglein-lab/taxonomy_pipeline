@@ -21,15 +21,7 @@
 #  (*) taxonomic assement of non contig-mapping reads, first by nt to nt alignments (blastn) and then by translated-nt to protein 
 #      alignments (diamond)  [contig_based_taxonomic_assessment]
 #
-#
-# This script depends on a number of other scripts that in turn also have dependencies (see individual scripts).  
-#
-# Also, for the taxonomic tallying to work (tally_hits_universal.pl), it is necessary to tell PERL where to find certain
-# perl modules by setting the  PERL5LIB environmental variable, for example as follows (put this line in the .bashrc file in your 
-# home dir
 # 
-# export PERL5LIB=$PERL5LIB:/home/mdstengl/bin
-#
 # The major modifiable step is to specify the host_filtering_script parameter, which
 # should refer to a script that will remove host reads (see below)
 #
@@ -70,7 +62,7 @@ fastqc -o fastqc_post ${id}_R1_fu.fastq
 #
 # or:
 # 
-host_filtering_script=filter_tick_reads_single_end
+host_filtering_script=filter_fly_reads_single_end
 
 # run whatever host filtering script for this sample -> output ${id}_R[12]_fuh.fastq
 ./$host_filtering_script $id

@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #
-# This script filters tick sequences from a sequencing dataset by
-# alignment to the I scapularis genome sequence
+# This script filters fruit fly sequences from a sequencing dataset by
+# alignment to the Drosophila genome sequence
 #
 # It is meant to work in the context of our lab's overall taxonomy pipeline
 #
@@ -17,7 +17,7 @@
 # The _fu  in the filenames indicate that they have been quality filtered (f) and collapsed
 # to unique sequences (u).
 #
-# The script uses bowtie2 to align the reads in these files against the tick genome
+# The script uses bowtie2 to align the reads in these files against the fly genome
 # and produces a file that contains all the non-aligning reads.  This file has an _fuh suffix
 # to indicate that it has been host filtered(h)
 #
@@ -46,10 +46,10 @@ log=${file_base}.pipeline.log
 # ---------------------
 
 # Location of bowtie2 index of genome
-btindex=/home/databases/tick/tick_genome
+btindex=/home/databases/fly/fly_genome
 
 # output suffix of files created
-output_suffix=tick_genome
+output_suffix=fly_genome
 
 # num_cpu for running bowtie2
 num_cpu=12
@@ -65,12 +65,13 @@ min_score=60
 f1=${file_base}_R1_fu.fastq
 
 echo "*****************************************************"
-echo "filtering out I. scapularis seqs from file $f1 "
+echo "filtering out Drosophila seqs from file $f1 "
 echo "*****************************************************"
 
 # align R1 reads
-echo "bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time --un ${file_base}_R1_fuh.fastq -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log"
-bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time --un ${file_base}_R1_fuh.fastq -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log
+echo "bowtie2 -x $btindex --local -q -U $f1 --score-min C,${min_score},0 --un ${file_base}_R1_fuh.fastq -p $num_cpu > /dev/null 2> ${f1}.${output_suffix}_bt.log"
+bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time --un ${file_base}_R1_fuh.fastq -p $num_cpu > /dev/null 2> ${f1}.${output_suffix}_bt.log
+
 
 
 } 2>&1  | tee -a $log  # output tee'd to a logfile

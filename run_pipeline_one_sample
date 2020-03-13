@@ -70,7 +70,7 @@ fastqc -o fastqc_post ${id}_R1_fu.fastq ${id}_R2_fu.fastq
 #
 # or:
 # 
-host_filtering_script=filter_ag_reads
+host_filtering_script=filter_human_reads
 
 # run whatever host filtering script for this sample -> output ${id}_R[12]_fuh.fastq
 ./$host_filtering_script $id

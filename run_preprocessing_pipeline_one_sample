@@ -10,7 +10,7 @@
 #
 #     outputs  <file_base>_R1_f.fastq <file_base>_R2_f.fastq
 #
-# (2) uses cd-hit-est to collapse duplicate read pairs.  This is done by concatenating the first 30nt of 
+# (2) uses cd-hit to collapse duplicate read pairs.  This is done by concatenating the first 30nt of 
 #     the read1 and read2 sequences and collapsing read pairs that have at least 58/60 of these nt identical
 #     Do it this way cause faster.
 #
@@ -25,14 +25,9 @@
 #
 #
 # Dependencies:
-#
-# This script calls in turn a bunch of other scripts I've written.  These should be in your PATH.
-#
-#  concat_fasta_records 
-#  fastq_to_fasta
-#  reconcile_read2_file 
-#  reconcile_fastq_to_fasta
-#  fasta_from_sam
+# 
+#  - cutadapt
+#  - cd-hit-dup
 #
 # Mark Stenglein
 #
@@ -79,23 +74,11 @@ log=${file_base}.pipeline.log
    f1=${file_base}_R1_f.fastq
    f2=${file_base}_R2_f.fastq
 
-   # fastq_to_fasta 
-   fastq_to_fasta < $f1 > ${file_base}_R1_f.fa
-   fastq_to_fasta < $f2 > ${file_base}_R2_f.fa
-
    # collapse to "unique" reads based on 1st 30 bases of R1 and R2 
-   # allow 2 mismatches in these 60 bases (58/60 = 96.66% -> so cluster seqs w/ >= 96% pairwise id)
+   # allow 2 mismatches in these 60 bases. 
    # this collapses reads w/ identical start and end points, likely PCR duplicates
    # doing it based on 60 bases only speeds up process and is enough info to identify dups
-   concat_fasta_records -5 30 ${file_base}_R1_f.fa ${file_base}_R2_f.fa > ${file_base}_R12_30_f.fa 
-
-   cd-hit-est -c 0.96 -i ${file_base}_R12_30_f.fa  -o ${file_base}_R12_30_f.fa.cdhit  -T 12 -M 0 
-
-   reconcile_fastq_to_fasta ${file_base}_R1_f.fastq ${file_base}_R12_30_f.fa.cdhit  > ${file_base}_R1_fu.fastq
-   reconcile_fastq_to_fasta ${file_base}_R2_f.fastq ${file_base}_R12_30_f.fa.cdhit  > ${file_base}_R2_fu.fastq
-
-   f1=${file_base}_R1_fu.fastq
-   f2=${file_base}_R2_fu.fastq
+   cd-hit-dup -i $f1 -i2 $f2 -o ${file_base}_R1_fu.fastq -o2 ${file_base}_R2_fu.fastq -u 30 -e 2   
 
 } 2>&1  | tee -a $log  # output tee'd to a logfile
 

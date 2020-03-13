@@ -97,9 +97,9 @@ echo "************************************************"
 echo "bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log"
 bowtie2 -x $btindex --local -q -U $f1 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f1}.${output_suffix}_bt.sam 2> ${f1}.${output_suffix}_bt.log
 
-fasta_from_sam -f $f1 -r ${f1}.${output_suffix}_bt.sam > ${file_base}_R1_fuh1.fastq
+./fasta_from_sam -f $f1 -r ${f1}.${output_suffix}_bt.sam > ${file_base}_R1_fuh1.fastq
 
-reconcile_read2_file ${file_base}_R1_fuh1.fastq ${file_base}_R2_fu.fastq f2 > ${file_base}_R2_fuh1.fastq
+./reconcile_read2_file ${file_base}_R1_fuh1.fastq ${file_base}_R2_fu.fastq f2 > ${file_base}_R2_fuh1.fastq
 
 f2=${file_base}_R2_fuh1.fastq
 echo "bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 --time -p $num_cpu -S ${f2}.${output_suffix}_bt.sam 2> ${f2}.${output_suffix}_bt.log"
@@ -107,9 +107,9 @@ bowtie2 -x $btindex --local -q -U $f2 --sensitive --score-min C,${min_score},0 -
 
 f2_sam=${file_base}_R2_fuh1.fastq.${output_suffix}_bt.sam
 
-fasta_from_sam -f ${file_base}_R2_fuh1.fastq -r $f2_sam > ${file_base}_R2_fuh.fastq
+./fasta_from_sam -f ${file_base}_R2_fuh1.fastq -r $f2_sam > ${file_base}_R2_fuh.fastq
 
-reconcile_read2_file ${file_base}_R2_fuh.fastq ${file_base}_R1_fuh1.fastq > ${file_base}_R1_fuh.fastq
+./reconcile_read2_file ${file_base}_R2_fuh.fastq ${file_base}_R1_fuh1.fastq > ${file_base}_R1_fuh.fastq
 
 
 } 2>&1  | tee -a $log  # output tee'd to a logfile

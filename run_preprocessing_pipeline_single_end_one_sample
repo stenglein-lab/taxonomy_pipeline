@@ -10,7 +10,7 @@
 #
 #     outputs  <file_base>_R1_f.fastq 
 #
-# (2) uses cd-hit-est to collapse duplicate reads. 
+# (2) uses cd-hit to collapse duplicate reads. 
 #
 #     outputs  <file_base>_R1_fu.fastq 
 # 
@@ -22,11 +22,8 @@
 #
 # Dependencies:
 #
-# This script calls in turn a bunch of other scripts I've written.  These should be in your PATH.
-#
-#  fastq_to_fasta
-#  reconcile_fastq_to_fasta
-#  fasta_from_sam
+# - cutadapt
+# - cd-hit-dup
 #
 # Mark Stenglein
 #
@@ -70,14 +67,10 @@ log=${file_base}.pipeline.log
 	# name of cutadapt output
    f1=${file_base}_R1_f.fastq
 
-   # fastq_to_fasta 
-   fastq_to_fasta < $f1 > ${file_base}_R1_f.fa
-
    # collapse to "unique" reads based using cd-hit-dup
-   # allow 1% mismatches  (-e 0.01). 
-	# see: http://weizhongli-lab.org/lab-wiki/doku.php?id=cd-hit-user-guide#cd-hit-dup
-
-   cd-hit-dup -i $f1 -o ${file_base}_R1_fu.fastq -e 0.01 
+	# i.e. remove likely PCR duplicates
+   # allow up to 2 mismatches in the first 50 bases (-e 2 -u 50): 
+   cd-hit-dup -i $f1 -o ${file_base}_R1_fu.fastq -e 2 -u 50
 
 } 2>&1  | tee -a $log  # output tee'd to a logfile
 

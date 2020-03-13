@@ -1,0 +1,78 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+
+my $print_usage = 0;
+
+my $usage = <<USAGE;
+
+  This script filters fasta sequences based on the size of sequences.
+
+  It reads from stdin and writes to stdout.
+ 
+  Mark Stenglein August 29, 2011
+
+  Usage: $0 [-h] [-b lower_size_limit] [-t upper_size_limit] fasta_file
+
+   [-h]              print this message
+
+   [-b lower_limit]  sequences shorter than this length will not be output
+
+   [-t upper_limit]  sequences longer than this length will not be output
+
+USAGE
+
+if ((scalar @ARGV == 0) and -t STDIN) { print $usage and exit; }
+
+my $lower_cutoff = undef;
+my $upper_cutoff = undef;
+my $print_usage = 0;
+
+GetOptions ("h" => \$print_usage, "b=s" => \$lower_cutoff, "t=s" => \$upper_cutoff);
+
+if ($print_usage) { print $usage; exit; }
+
+my $seq = undef;
+my $header = undef;
+
+while (<>)
+{
+   chomp;
+   if (/^>/)
+   {
+      if ($header) 
+      {
+         my $seq_length = length ($seq);
+         if (($lower_cutoff && ($seq_length < $lower_cutoff)) || ($upper_cutoff && ($seq_length > $upper_cutoff)))
+         {
+            # don't print out record
+            # warn "filtering record with seq length: $seq_length (lower: $lower_cutoff ; upper: $upper_cutoff)\n";
+         }
+         else
+         {
+            print "$header\n$seq\n";
+         }
+      }
+      $header = $_;
+      $seq = "";
+   }
+   else
+   {
+      $seq .= $_;
+   }
+}
+
+# last record
+if ($header) 
+{
+   my $seq_length = length ($seq);
+   if (($lower_cutoff && ($seq_length < $lower_cutoff)) || ($upper_cutoff && ($seq_length > $upper_cutoff)))
+   {
+      # don't print out record
+   }
+   else
+   {
+      print "$header\n$seq\n";
+   }
+}
