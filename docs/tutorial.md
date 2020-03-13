@@ -58,13 +58,23 @@ git clone https://github.com/stenglein-lab/taxonomy_pipeline.git
 
 An advantage of using git clone to obtain the pipeline is that it effectively timestamps the version of it you are using.  You should see a new directory named taxonomy_pipeline when you type the command `ls`.
 
-Run the following command to get the pipeline files into your present working directory:
-
+Run the following command to copy the pipeline files into your present working directory:
 ```
 cp taxonomy_pipeline/bin/* .
 ```
 
+You should see a bunch of scripts now in the present working directory that constitute the pipeline if you type `ls`.
 
+#### To run the pipeline on this example dataset, you can run these commands:
+```
+conda activate taxonomy 
+./run_pipeline_single_end brazil_dros_pool
+```
+The conda command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
+
+The pipeline will take a while to run, maybe 30 minutes for a dataset this size on this server.   
+
+Running the pipeline this way doesn't really help you understand what's happening, so let's consider the steps individually.
 
 ###
 
