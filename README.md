@@ -39,11 +39,6 @@ The main steaps in the pipeline are:
 - taxonomic assement of non contig-mapping reads, first by nt to nt alignments (blastn) and then by translated-nt to protein alignments (diamond)  [contig_based_taxonomic_assessment](./contig_based_taxonomic_assessment)
 
 
-Also, for the taxonomic tallying to work (tally_hits_universal.pl), it is necessary to tell PERL where to find certain
-perl modules by setting the  PERL5LIB environmental variable, for example by adding the following line in the .bashrc file in your 
-home dir:
-
-```export PERL5LIB=$PERL5LIB:~/bin```
 
 We are working to make this pipeline more portable and welcome your feedback in the meantime.
 
