@@ -92,9 +92,9 @@ f1=${file_base}_R1_fuh.fastq
 	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 --un ${file_base}_R1_fuhs.fastq -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
 
 	# count the # of reads that hit each contig 
-	./tally_sam_subjects ${f1}.${bt_index}.sam > ${f1}.${bt_index}.sam.subject_hits
+	./tally_sam_subjects ${f1}.${bt_index}.sam > ${id}_contig_weights.txt
 
-   weights_file=${f1}.${bt_index}.sam.subject_hits
+   weights_file=${id}_contig_weights.txt
 
    # *********************
    # blastn contigs vs. nt
