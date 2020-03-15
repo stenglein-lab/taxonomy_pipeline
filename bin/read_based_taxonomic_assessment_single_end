@@ -33,9 +33,9 @@
 #  fasta_from_gsnap
 #  reconcile_read2_file
 #  fastq_to_fasta
-#  tally_hits_gsnap.pl 
-#  tally_hits_universal.pl 
-#  distribute_fasta_by_blast_taxid.pl 
+#  tally_blast_hits 
+#  tally_blast_hits 
+#  distribute_fasta_by_blast_taxid 
 #
 # Mark Stenglein
 #
@@ -75,7 +75,7 @@ log=${file_base}.pipeline.log
    fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
 
    # pull out virus-derived reads
-   distribute_fasta_by_gsnap_taxid.pl -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
+   distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
 
    # diamond
 
@@ -95,9 +95,9 @@ log=${file_base}.pipeline.log
    date 
 
    echo "tallying diamond vs. nr hits" 
-   tally_hits_universal.pl ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.tally  
-   tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
-   tally_hits_universal.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr > ${file_base}_R1_fuhsn.fastq.dmd_nr.tab_tree_tally 
+   tally_blast_hits ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.tally  
+   tally_blast_hits -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
+   tally_blast_hits -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr > ${file_base}_R1_fuhsn.fastq.dmd_nr.tab_tree_tally 
 
    echo "done tallying" 
    date 
@@ -107,7 +107,7 @@ log=${file_base}.pipeline.log
    fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.dmd_nr 
+   distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.dmd_nr 
 
    echo "done with read-based taxonomic assessment"
    date

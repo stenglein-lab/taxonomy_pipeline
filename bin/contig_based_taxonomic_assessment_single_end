@@ -37,8 +37,8 @@
 #  tally_sam_subjects
 #  fasta_from_sam
 #  fasta_from_blast
-#  tally_hits_universal.pl 
-#  distribute_fasta_by_blast_taxid.pl 
+#  tally_blast_hits 
+#  distribute_fasta_by_blast_taxid 
 #
 # Mark Stenglein
 #
@@ -122,14 +122,14 @@ f1=${file_base}_R1_fuh.fastq
 
    echo "tallying blastn vs. nt hits" 
    date 
-   ./tally_hits_universal.pl -w $weights_file ${f1}.bn_nt > ${f1}.bn_nt.tally
-   # ./tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.bn_nt > ${f1}.bn_nt.desc_tally
-   ./tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.bn_nt > ${f1}.bn_nt.tab_tree_tally
+   ./tally_blast_hits -w $weights_file ${f1}.bn_nt > ${f1}.bn_nt.tally
+   # ./tally_blast_hits -w $weights_file -d -o desc_tally ${f1}.bn_nt > ${f1}.bn_nt.desc_tally
+   ./tally_blast_hits -w $weights_file -t -ti -o tab_tree_tally ${f1}.bn_nt > ${f1}.bn_nt.tab_tree_tally
 
    # ***************************************************************************
    # pull out virus-derived reads - this will create a file for each viral taxon
    # ***************************************************************************
-   ./distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.bn_nt
+   ./distribute_fasta_by_blast_taxid -v ${f1} ${f1}.bn_nt
 
    # ************************************************
    # run diamond to identify protein-level alignments
@@ -155,9 +155,9 @@ f1=${file_base}_R1_fuh.fastq
    # Taxonomic assessment of aa-based alignments
    # *******************************************
    echo "tallying diamond vs. nr hits" 
-   ./tally_hits_universal.pl -w $weights_file ${f1}.dmd_nr > ${f1}.dmd_nr.tally
-   # ./tally_hits_universal.pl -w $weights_file -d -o desc_tally ${f1}.dmd_nr > ${f1}.dmd_nr.desc_tally
-   ./tally_hits_universal.pl -w $weights_file -t -ti -o tab_tree_tally ${f1}.dmd_nr > ${f1}.dmd_nr.tab_tree_tally
+   ./tally_blast_hits -w $weights_file ${f1}.dmd_nr > ${f1}.dmd_nr.tally
+   # ./tally_blast_hits -w $weights_file -d -o desc_tally ${f1}.dmd_nr > ${f1}.dmd_nr.desc_tally
+   ./tally_blast_hits -w $weights_file -t -ti -o tab_tree_tally ${f1}.dmd_nr > ${f1}.dmd_nr.tab_tree_tally
 
    echo "done tallying" 
    date
@@ -167,7 +167,7 @@ f1=${file_base}_R1_fuh.fastq
    # ***************************************************************************
    # pull out virus-derived reads - this will create a file for each viral taxon
    # ***************************************************************************
-   ./distribute_fasta_by_blast_taxid.pl -v ${f1} ${f1}.dmd_nr
+   ./distribute_fasta_by_blast_taxid -v ${f1} ${f1}.dmd_nr
 
    echo "done with contig-based taxonomic assessment for $file_base"
    date

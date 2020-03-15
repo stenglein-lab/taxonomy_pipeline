@@ -33,9 +33,8 @@
 #  fasta_from_gsnap
 #  reconcile_read2_file
 #  fastq_to_fasta
-#  tally_hits_gsnap.pl 
-#  tally_hits_universal.pl 
-#  distribute_fasta_by_blast_taxid.pl 
+#  tally_blast_hits 
+#  distribute_fasta_by_blast_taxid 
 #
 # Mark Stenglein
 #
@@ -82,9 +81,9 @@ log=${file_base}.pipeline.log
 
    echo "tallying gsnap vs. nt hits" 
    date 
-   tally_hits_universal.pl -lca ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
-   tally_hits_universal.pl -lca -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
-   tally_hits_universal.pl -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   tally_blast_hits -lca ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   tally_blast_hits -lca -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
 
    # pull out hits to taxa of interest
    fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
@@ -93,12 +92,12 @@ log=${file_base}.pipeline.log
    cat ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap > ${file_base}_R12_fuhs.fastq.gsnap
 
    # if you have a file w/ particular taxids of interest
-   # distribute_fasta_by_gsnap_taxid.pl -f taxids_of_interest.txt  ${file_base}_R1_furg.fa ${file_base}_R12_furg.fastq.gsnap 
-   # distribute_fasta_by_gsnap_taxid.pl -f taxids_of_interest.txt  ${file_base}_R2_furg.fa ${file_base}_R12_furg.fastq.gsnap 
+   # distribute_fasta_by_blast_taxid -f taxids_of_interest.txt  ${file_base}_R1_furg.fa ${file_base}_R12_furg.fastq.gsnap 
+   # distribute_fasta_by_blast_taxid -f taxids_of_interest.txt  ${file_base}_R2_furg.fa ${file_base}_R12_furg.fastq.gsnap 
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R1_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
-   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R2_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
+   distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
+   distribute_fasta_by_blast_taxid -v ${file_base}_R2_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
 
    # diamond
 
@@ -136,9 +135,9 @@ log=${file_base}.pipeline.log
 
    # todo: deal w/ R1/R2 concordance/discordance/tax-assignment more elegantly
    echo "tallying diamond vs. nr hits" 
-   tally_hits_universal.pl -lca ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
-   tally_hits_universal.pl -lca -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
-   tally_hits_universal.pl -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   tally_blast_hits -lca ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   tally_blast_hits -lca -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
 
    echo "done tallying" 
    date 

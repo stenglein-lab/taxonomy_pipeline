@@ -31,17 +31,14 @@
 # directory as this script is located of the form ${id}_R1.fastq 
 id=$1
 
-mkdir -p fastqc_pre 
-mkdir -p fastqc_post
-
 # pre-filtering FastQC 
-fastqc -o fastqc_pre ${id}_R1.fastq 
+fastqc ${id}_R1.fastq 
 
 # run quality trimming, adapter trimming, unique collapsing script for this sample -> output ${id}_R[12]_fu.fastq
 ./run_preprocessing_pipeline_single_end $id
 
 # post-filtering FastQC 
-fastqc -o fastqc_post ${id}_R1_fu.fastq 
+fastqc ${id}_R1_fu.fastq 
 
 #
 # Specify a host filtering script.  This script can be whatever you want, but should create
