@@ -294,7 +294,7 @@ The output of this step is a file named `dros_pool_contig_weights.txt`.  Have a 
 
 Once contigs have been created, it is time to try to taxonomically categorize them.  The pipeline first uses [BLASTN](https://en.wikipedia.org/wiki/BLAST_(biotechnology)) to identify existing sequences in the NCBI nucleotide (nt) database that exceen a certain similarity threshold for each contig.  The output file created by the pipeline will be named `dros_pool_spade_contigs.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
 
-Can you find the line in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script where blastn is run?  What is the minimum E-value threshhold used? 
+Can you find the line in the [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end) script where blastn is run?  What is the minimum E-value threshhold used? 
 
 After blastn completes, look at the blast output file (`dros_pool_spade_contigs.fa.bn_nt`) by running the command `less dros_pool_spade_contigs.fa.bn_nt`.  Can you interpret the output?   (Hint: [this page](http://www.metagenomics.wiki/tools/blast/blastn-output-format-6) describes the column in the blast output). Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt database sequence?  What is the NCBI accession of that sequence?  What is that sequence? (You can check [here](https://www.ncbi.nlm.nih.gov/genbank/) by pasting in the accession).  
 
@@ -306,13 +306,19 @@ The [tally_blast_hits](../bin/tally_blast_hits) script does a couple things.  Fi
 
 If a contig produces equally high scoring blast alignments to multiple database sequences, then it will assign this contig to the "lowest common ancestor" (LCA) of all the hits.  This means that sometimes contigs will be assigned at a higher taxonomic level (e.g. at the genus or family level).  
 
-The `tally_blast_hits` script also tabulates the hits and outputs tables of the number of hits to each taxa, the average percent identity of these hits, etc.  This output file is named (in this example): `dros_pool_spade_contigs.fa.bn_nt.tally`.  Have a look at this file by running `less dros_pool_spade_contigs.fa.bn_nt.tally`.  The output is sorted by the number of reads assigned to each taxon.  (Remember that this number is weighted by the number of reads that mapped to each contig).  What was the most abunundant non-host taxon?   How many reads mapped to it?  What was the median percent identity of the blast alignments for this taxon?    
+The [tally_blast_hits](../bin/tally_blast_hits) script also tabulates the hits and outputs tables of the number of hits to each taxa, the average percent identity of these hits, etc.  i
+
+Have a look at the output of tally_blast_hits by running `less dros_pool_spade_contigs.fa.bn_nt.tally`.  The output is sorted by the number of reads assigned to each taxon.  (Remember that this number is weighted by the number of reads that mapped to each contig).  
+
+What was the most abunundant non-host taxon?   How many reads mapped to it?  What was the median percent identity of the blast alignments for this taxon?    
 
 This tally file is tab-delimited, so you can open it in programs like Excel or R for further analysis.  
 
-The `tally_blast_hits` script is also aware of the entire taxonomy heirarchy, so it can keep track of things like how many reads mapped to viruses, bacteria, etc.  The output file `dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally` has this information.  Look at this file by running `less dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally`.  How many reads mapped to viruses?  How many to bacteria?  Note that the lines of this file are indented at the beginning to reflect the taxonomy heirarchy, meaning it's not suitable for being opened in Excel or R.  
+The [tally_blast_hits](../bin/tally_blast_hits) script is also aware of the entire taxonomy heirarchy, so it can keep track of things like how many reads mapped to viruses, bacteria, etc.  The output file `dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally` has this information.  Look at this file by running `less dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally`.  
 
-The `tally_blast_hits` script is highly configurable.  It is run a couple different ways by the pipeline, but you can run it many different ways to suit your own analysis needs.  For instance, try running the command these way:
+How many reads mapped to viruses?  How many to bacteria?  Note that the lines of this file are indented at the beginning to reflect the taxonomy heirarchy, meaning it's *not* suitable for being opened in Excel or R (these initial indents can be removed - see below).  
+
+The [tally_blast_hits](../bin/tally_blast_hits) script is highly configurable.  It is run a couple different ways by the pipeline, but you can run it many different ways to suit your own analysis needs.  For instance, try running the command these way:
 
 ```
 # run the script by itself to see all the options for running it
@@ -327,17 +333,21 @@ The `tally_blast_hits` script is highly configurable.  It is run a couple differ
 ./tally_blast_hits -lca -it 10239 dros_pool_spade_contigs.fa.bn_nt
 
 
-# same as .tab_tree_tally file, but with no tab intenting at beginning of lines
+# same as .tab_tree_tally file, but with no indents at beginning of lines
 ./tally_blast_hits -lca -w dros_pool_contig_weights.txt -t dros_pool_spade_contigs.fa.bn_nt > dros_pool_spade_contigs.fa.bn_nt.tree_tally
 ```
 
-Play around with this script to produce different types of output.  If you want to capture the output in a new file, you can use the bash output redirection operator `>` as in the last example above.  
+Play around with this script to produce different types of output.  If you want to capture the output in a new file, you can use the bash [output redirection operator](https://thoughtbot.com/blog/input-output-redirection-in-the-shell) `>` as in the last example above.  
 
 ### <a name="section8"></a> 8. Extraction of putative virus contigs
 
-The pipeline by default also outputs putative virus-mapping contigs into separate fasta files.  The command responsible for doing this is named `[distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid)`.  The pipeline uses this script to create one fasta file for each virus taxon identified.  Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`?   Output the contents of this file by running `cat dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`.  How many galbut virus-mapping contigs were there?  How high are the coverage levels of these? 
+The pipeline by default also outputs putative virus-mapping contigs into separate fasta files.  
 
-Like `tally_blast_hits`, the `distribute_fasta_by_blast_taxid` script is configurable.  You can run it multiple ways to get the sequences of contigs that were assigned at any taxonomic level.  Here are some examples:
+The command responsible for doing this is named [distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid).  The pipeline uses this script to create one fasta file for each virus taxon identified.  
+
+Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`?   Output the contents of this file by running `cat dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`.  How many galbut virus-mapping contigs were there?  How high are the coverage levels of these? 
+
+Like [tally_blast_hits](../bin/tally_blast_hits), the [distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid) script is configurable.  You can run it multiple ways to get the sequences of contigs that were assigned at any taxonomic level.  Here are some examples:
 
 ```
 # run the script by itself to see usage information
@@ -346,6 +356,7 @@ Like `tally_blast_hits`, the `distribute_fasta_by_blast_taxid` script is configu
 # output all bacteria-mapping (bacteria = taxid 2) reads into a single file:
 ./distribute_fasta_by_blast_taxid -t 2 dros_pool_spade_contigs.fa.bn_nt
 ```
+
 Exercise: you should see in your .tally file that the pipeline identified Wolbachia-mapping contigs in this example dataset.  Can you create a file containing all the Wolbachia-mapping contigs? 
 
 ### <a name="section9"></a> 9. Diamond (BLASTX) search of NCBI protein (nr) database.
