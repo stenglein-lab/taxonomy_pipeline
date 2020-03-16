@@ -158,7 +158,7 @@ Note that you need to have the conda taxonomy environment activated.  If your co
 conda activate taxonomy
 ```
 
-Every time you log out then log back in the server, remember to activate that taxonomy conda environment. 
+Every time you log out then log back in the server, remember to activate that taxonomy conda environment.  (You will also have to activate this environment again if you start a [screen session](#section_screen).
 
 Running the following commands will recapitulate how the pipeline runs fastqc:
 ```
@@ -228,7 +228,7 @@ fastqc dros_pool_R1_fu.fastq
 
 There should be a new html file in your present directory.  Transfer it to your computer and look at it.  Did trimming and collapsing steps have the desired impact?
 
-### <a name="section4"></a> 4. Filtering of host-derived reads.
+### <a name="section4"></a> 4. Filtering host reads.
 
 The next step in the pipeline is to remove host-derived reads. The host-derived reads might well be interesting, but the pipeline's primary purpose is to taxonomically classify non-host reads.
 
@@ -424,6 +424,24 @@ output_suffix=aedes_genome
 Note that in this example assumes the existence of a bowtie index in the directory `/home/mdstengl/databases/mosquito/`.  In real life, you would actually have needed to download the new host genome and build a bowtie2 index for it: [see below](#section_genome)
 
 If there is no genome for your host of interest, often using a relatively closely related species will work sufficiently well for the purposes of host filtering.  
+
+#### 2. Changing the main pipeline script to filter the appropriate host
+
+Once you've created a new host filtering script, you'll need to change the main pipeline file to use it.  The relevant line in `[run_pipeline_single_end](../bin/run_pipeline_single_end)` is:
+```
+host_filtering_script=filter_fly_reads_single_end
+```
+
+In this example, you would want to change this by editing the file to:
+```
+host_filtering_script=filter_aedes_reads_single_end
+```
+
+Note that the comments in the `[script](../bin/run_pipeline_single_end)` describe a strategy to use different hosts for different datasets.
+
+##### Host filtering paired-end data:
+
+For paired end datasets, you'd want to change the `[run_pipeline](../bin/run_pipeline)` script.  [filter_human_reads](../bin/filter_human_reads) is an example of a paired-end host filtering script.
 
 #### If you don't want to do host filtering
 
