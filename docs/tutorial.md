@@ -2,7 +2,7 @@
 
 This tutorial describes how to run the [Stenglein lab's](http://www.stengleinlab.org) [taxonomy pipeline](http://github.com/stenglein-lab/taxonomy_pipeline) to perform metagenomic classification.
 
-This tutorial is tailored for users on the aidlngs01 server but could be useful to users who wish to use the pipeline on another server.   See [setup instructions](./setup_instructions.md). 
+This tutorial is tailored for users on the aidlngs01 server but could be useful to users who wish to use the pipeline on another server.   See [setup instructions](./setup_instructions.md)for how to get a computer setup to run the pipeline.  
 
 
 ### Pipeline overview
@@ -24,7 +24,7 @@ Note that if you are off the CSU campus, you will have [VPN in](https://www.acns
 
 When you first login, you will be asked a question about an `"ECDSA key fingerprint"`.  Answer yes to continue.  You should only see this the first time you login.  You'll also see some information about a conda environment installing on your first login, which may run for a few minutes. 
 
-If you're analyzing your own dataset, you'll have to transfer the sequence data (fastq files) to the server.  For this tutorial, we will analyze an existing dataset.  This dataset is shotgun 1x150 RNA sequencing data from wild caught [Drosophila spp.](http://obbard.bio.ed.ac.uk/photos.html) flies.  (Thanks to Reyes Murrieta for catching flies and Emily Fitzmeyer for preparing the sequencing library and generating the data).  
+If you're analyzing your own dataset, you'll have to transfer the sequence data (fastq files) to the server.  For this tutorial, we will analyze an existing dataset.  This dataset is shotgun 1x150 RNA sequencing data from wild caught [Drosophila spp.](http://obbard.bio.ed.ac.uk/photos.html) flies.  (Thanks to Reyes Murrieta for catching the flies and Emily Fitzmeyer for preparing the sequencing library and generating the data).  
 
 Let's start getting things into place.  You should be in your home directory on the aidlngs01 server, so your terminal should look something like this:
 
@@ -41,7 +41,7 @@ mkdir taxo_tutorial
 cd taxo_tutorial
 ```
 
-If you disconnect from the server and log back in, you'll want to change into that directory to continue to the tutorial.
+If you disconnect from the server and log back in, you'll want to change into that directory to continue the tutorial.
 
 
 Now, let's copy this example dataset to the directory we are in (our present working directory = .)
@@ -80,17 +80,17 @@ You should see a bunch of scripts now in the present working directory that cons
 conda activate taxonomy 
 
 # run the entire pipeline on one dataset
-# don't actually run this yet!
+# ** don't actually run this yet! **
 ./run_pipeline_single_end dros_pool
 ```
 
-The conda command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
+The `conda activate` command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
 
-Note that the input to the pipeline is the name of the dataset, and the pipeline script expects a file whose name is `<dataset>_R1.fastq`.  For a paired-end analysis, the equivalent command would be `./run_pipeline <dataset_name>` and the pipeline would expect that two files exist: `<dataset_name>_R1.fastq` and `<dataset_name>_R2.fastq`
+Note that the input to the pipeline is the name of the dataset, and **the pipeline expects a file whose name is `<dataset>_R1.fastq` to exist in your present directory** .  For a paired-end analysis, the equivalent command would be `./run_pipeline <dataset_name>` and the pipeline would expect that two files exist: `<dataset_name>_R1.fastq` and `<dataset_name>_R2.fastq`
 
-The pipeline will take a while to run, maybe 30 minutes for a dataset this size on this server.   
+The pipeline would take a while to run, maybe 30 minutes for a dataset this size on this server.   
 
-**Running the pipeline this way doesn't really help you understand what's happening, so let's consider the steps individually.**
+**Running the pipeline this way doesn't really help you understand what's happening, so let's consider the steps individually.**   We will run the commands individually rather than all at once via the main pipeline script.  
 
 ### The main pipeline steps are:
 
@@ -120,13 +120,15 @@ Note that you need to have the conda taxonomy environment activated.  If your co
 conda activate taxonomy
 ```
 
-Running the following commands will recapitulate what the pipeline does:
+Every time you log out then log back in the server, remember to activate that taxonomy conda environment. 
+
+Running the following commands will recapitulate how the pipeline runs fastqc:
 ```
 # use FastQC to analyze the data in one fastq file
-fastqc -o fastqc_pre dros_pool_R1.fastq
+fastqc dros_pool_R1.fastq
 ```
 
-In the pipeline, this command is run as one command in the larger [run_pipeline](../bin/run_pipeline) bash script.  See if you can find where it's run in that script by looking at [the file](../bin/run_pipeline) on github. 
+In the pipeline, this command is run from the main [run_pipeline](../bin/run_pipeline) bash script.  See if you can find where it's run in that script by looking at [the file](../bin/run_pipeline) on github. 
 
 After fastqc completes, you should see a new html file if you run the `ls` command.
 
@@ -134,7 +136,7 @@ After fastqc completes, you should see a new html file if you run the `ls` comma
 
 - **Basic Statistics:** this will indicate how many reads there are in the dataset, what their lengths are, etc.
 - **Per base sequence quality:** an indication of the average basecall quality scores as a function of read length.  Hopefully much of your data will be in the green, but in any case, the pipeline trims off low quality parts off of reads.
-- **Per base sequence content:** this the average percent of each of the 4 bases at each position in the reads.  These lines should be flat (base composition should be equal across reads in shotgun data) and the overall percentages should match the average GC content of the data.
+- **Per base sequence content:** this the average percent of each of the 4 bases at each position in the reads.  These lines should be more or less flat (base composition should be equal across reads in shotgun data) and the overall percentages should match the average GC content of the data.
 - **Sequence duplication levels:**  this will give you an indication of how many duplicated sequences are in your dataset.  The more cycles of PCR you do during library prep, the more duplicated sequences you will have (which is why it's good to minimize PCR during library prep).  Duplicated sequences don't really add independent information, so the pipeline removes them.
 - **Over-represented sequences:** sometimes these are highly duplicated sequences and sometimes they are adapter or rRNA sequences.  If you see over-represented sequences, you can blast them at the [NCBI website](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastSearch) to try to get an idea of what they are.
 - **Adapter content:** if your read length is longer than the insert size in your libraries, you will see adapter sequences in your dataset.  You definitely want to trim off adapter sequences because they don't derive from the sample you are sequencing, and the pipeline does this.
@@ -183,16 +185,16 @@ The pipeline next runs fastqc again to double-check that trimming and duplicate 
 
 ```
 # use FastQC to visualize effects of trimming
-fastqc dros_pool_R1_fu.fastq -o fastqc_post
+fastqc dros_pool_R1_fu.fastq 
 ```
 
-There should be a new html file in the new fastqc_post directory.  Transfer it to your computer and look at it.  Did trimming and collapsing steps have the desired impact?
+There should be a new html file in your present directory.  Transfer it to your computer and look at it.  Did trimming and collapsing steps have the desired impact?
 
 ### <a name="section4"></a> 4. Filtering of host-derived reads.
 
-The next step in the pipeline is to remove host-derived reads. The host-derived reads might be interesting, but the pipeline's primary purpose is to taxonomically classify non-host reads.
+The next step in the pipeline is to remove host-derived reads. The host-derived reads might well be interesting, but the pipeline's primary purpose is to taxonomically classify non-host reads.
 
-The [run_pipeline_single_end script](../bin/run_pipeline_single_end) by default filters out Drosophila (fly) reads.  This is the appropriate type of host filtering for our example dataset but obviously wouldn't be the appropriate choice for most datasets.  See [below](#section_different_host) for information about how to filtering reads from other hosts.
+The [run_pipeline_single_end script](../bin/run_pipeline_single_end) by default filters out _Drosophila_ (fly) reads.  This is the appropriate type of host filtering for our example dataset but obviously wouldn't be the appropriate choice for most datasets.  See [below](#section_different_host) for information about how to filtering reads from other hosts.
 
 The pipeline uses [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) to map the reads to the [Drosophila melanogaster reference genome](https://www.ncbi.nlm.nih.gov/genome/?term=txid7227[Organism:noexp]).  Although these wild drosophilid flies are not necessarily _D. melanogaster_, they are closely enough related that using this reference geneome will work well (we determined this empirically).  
 
@@ -218,14 +220,14 @@ This is a long command!  Let's break it down:
 
 See the [bowtie2 manual](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) for more info about all these settings.
 
-The main output that we care about for this command will be the `dros_pool_R1_fuh.fastq` reads that didn't map to the fly genome. These are (presumably) the non-host reads that we will analyze in the rest of the pipeline.  How many reads are in this file? In other words, how many reads remain after host filtering?  What fraction of the original dataset is that?
+The main output that we care about for this command will be the `dros_pool_R1_fuh.fastq` file, which contains reads that _did not_ map to the fly genome. These are (presumably) the non-host reads that we will analyze in the rest of the pipeline.  How many reads are in this file? In other words, how many reads remain after host filtering?  What fraction of the original dataset is that?  Could this set of non-mapping reads contain host-derived reads?  What are some of the reasons that host reads might not have been filtered by this step? 
 
 This command will also output a log file: `dros_pool_R1_fu.fastq.fly_genome_bt.log`. Have a look at it. What percentage of reads mapped to the host genome?  
 
 
 ### <a name="section5"></a> 5. Assembly of remaining host-filtered reads.
 
-The next 6 steps are all done by a single script, [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  The commands run here are a bit more than it is convenient to run manually, so let's run the script as is, and talk about the various steps and their output.  
+The next 6 steps are all done by a single script, [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  The commands run here are a bit more than it is convenient to run manually, so let's run the script as is, and walk through the steps and their output.  
 
 Let's run the command.  
 ```
@@ -239,37 +241,203 @@ The first thing you should see is the output from the [spades assembler](http://
 
 After assembly is complete, you will see a new file in the directory named `dros_pool_spade_contigs.fa`. This is a fasta file containing the assembled contigs. 
 
+Once spade has completed, look for the `dros_pool_spade_contigs.fa` file, and have a look at it: `less dros_pool_spade_contigs.fa`.  How long are the longest contigs?  Can you tell how much coverage the different contigs have?
+
 The pipeline then uses bowtie to map host filtered reads (those in the `fuh.fastq` file) to the contigs.  The goals of this are:
 
 1. To determine how many reads were collapsed into each contig.  When the pipeline taxonomically assigns the contigs, it weights them by the number of reads that contributed to each contig.
 2. To identify reads that didn't assemble into contigs (assembly requires a certain amount of coverage (overlap), so not all reads will assemble).  These "singleton" reads can also be taxonomically assigned.
 
-Once spade has completed, look for the `dros_pool_spade_contigs.fa` file, and have a look at it: `less dros_pool_spade_contigs.fa`.  How long are the longest contigs?  Can you tell how much coverage the different contigs have?
+The output of this step is a file named `dros_pool_contig_weights.txt`.  Have a look at the first 20 lines by running `head -20 dros_pool_contig_weights.txt`.  How many reads mapped to the top 20 contigs? 
 
 ### <a name="section6"></a> 6. BLASTN search of contigs against the NCBI nucleotide (nt) database.
 
-Once contigs have been created, it is time to try to taxonomically categorize them.  The pipeline first uses BLASTN to identify existing sequences in the NCBI nucleotide (nt) database that have a certain amount of similarity with each contig.  The output file created by the pipeline will be named `dros_pool_spade_contigs.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
+Once contigs have been created, it is time to try to taxonomically categorize them.  The pipeline first uses BLASTN to identify existing sequences in the NCBI nucleotide (nt) database that exceen a certain similarity threshold for each contig.  The output file created by the pipeline will be named `dros_pool_spade_contigs.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
 
 Can you find the line in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script where blastn is run?
 
 After blastn completes, look at the blast output file (`dros_pool_spade_contigs.fa.bn_nt`) by running the command `less dros_pool_spade_contigs.fa.bn_nt`.  Can you interpret the output?   (Hint: [this page](http://www.metagenomics.wiki/tools/blast/blastn-output-format-6) describes the column in the blast output). Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt database sequence?  What is the NCBI accession of that sequence?  What is that sequence (you can check [here](https://www.ncbi.nlm.nih.gov/genbank/)).  
 
-
-
 ### <a name="section7"></a> 7. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
+
+You could go through the contigs one at a time, but that's not very practical.  The next step of the pipeline taxonomically categorizes the blast "hits" and tabulates the results in a couple different formats.  The script that does this is called `tally_blast_hits`.  Can you find where this is called in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script? Note that it is called multiple times in slightly different ways.
+
+The `tally_blast_hits` script does a couple things.  First it goes through the blast results and maps the database sequences to their taxa.  Note that this depends on annotation in the NCBI database. For instance, visit [this database sequence](https://www.ncbi.nlm.nih.gov/nuccore/827047338).  What species is this sequence assigned to?  Can you see where the entire taxonomic lineage of this species is noted?  Note also that sometimes this annotation is incorrect.  
+
+If a contig produces equally high scoring blast alignments to multiple database sequences, then it will assign this contig to the "lowest common ancestor" (LCA) of all the hits.  This means that sometimes contigs will be assigned at a higher taxonomic level (e.g. at the genus or family level).  
+
+The `tally_blast_hits` script also tabulates the hits and outputs tables of the number of hits to each taxa, the average percent identity of these hits, etc.  This output file is named (in this example): `dros_pool_spade_contigs.fa.bn_nt.tally`.  Have a look at this file by running `less dros_pool_spade_contigs.fa.bn_nt.tally`.  The output is sorted by the number of reads assigned to each taxon.  (Remember that this number is weighted by the number of reads that mapped to each contig).  What was the most abunundant non-host taxon?   How many reads mapped to it?  What was the median percent identity of the blast alignments for this taxon?    
+
+This tally file is tab-delimited, so you can open it in programs like Excel or R for further analysis.  
+
+The `tally_blast_hits` script is also aware of the entire taxonomy heirarchy, so it can keep track of things like how many reads mapped to viruses, bacteria, etc.  The output file `dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally` has this information.  Look at this file by running `less dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally`.  How many reads mapped to viruses?  How many to bacteria?  Note that the lines of this file are indented at the beginning to reflect the taxonomy heirarchy, meaning it's not suitable for being opened in Excel or R.  
+
+The `tally_blast_hits` script is highly configurable.  It is run a couple different ways by the pipeline, but you can run it many different ways to suit your own analysis needs.  For instance, try running the command these way:
+
+```
+# run the script by itself to see all the options for running it
+./tally_blast_hits 
+
+
+# tally hits at the genus level
+./tally_blast_hits -lca -r genus -w dros_pool_contig_weights.txt dros_pool_spade_contigs.fa.bn_nt
+
+
+# tally only for viruses (NCBI taxid 10239, see: https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=10239&lvl=3&lin=f&keep=1&srchmode=1&unlock)
+./tally_blast_hits -lca -it 10239 dros_pool_spade_contigs.fa.bn_nt
+
+
+# same as .tab_tree_tally file, but with no tab intenting at beginning of lines
+./tally_blast_hits -lca -w dros_pool_contig_weights.txt -t dros_pool_spade_contigs.fa.bn_nt > dros_pool_spade_contigs.fa.bn_nt.tree_tally
+```
+
+Play around with this script to produce different types of output.  If you want to capture the output in a new file, you can use the bash output redirection operator `>` as in the last example above.  
+
 ### <a name="section8"></a> 8. Extraction of putative virus contigs
+
+The pipeline by default also outputs putative virus-mapping contigs into separate fasta files.  The command responsible for doing this is named `[distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid)`.  The pipeline uses this script to create one fasta file for each virus taxon identified.  Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`?   Output the contents of this file by running `cat dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`.  How many galbut virus-mapping contigs were there?  How high are the coverage levels of these? 
+
+Like `tally_blast_hits`, the `distribute_fasta_by_blast_taxid` script is configurable.  You can run it multiple ways to get the sequences of contigs that were assigned at any taxonomic level.  Here are some examples:
+
+```
+# run the script by itself to see usage information
+./distribute_fasta_by_blast_taxid
+
+# output all bacteria-mapping (bacteria = taxid 2) reads into a single file:
+./distribute_fasta_by_blast_taxid -t 2 dros_pool_spade_contigs.fa.bn_nt
+```
+Exercise: you should see in your .tally file that the pipeline identified Wolbachia-mapping contigs in this example dataset.  Can you create a file containing all the Wolbachia-mapping contigs? 
+
 ### <a name="section9"></a> 9. Diamond (BLASTX) search of NCBI protein (nr) database.
 ### <a name="section10"></a> 10. Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.
 ### <a name="section11"></a> 11. Extraction of putative virus contigs
+
+The next three steps are also run as part of [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  
+
+After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs using protein-level similarity.  The pipelie uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (Q: why is this so?).  
+
+The contigs that didn't produce a nucleotide-level similarity alignment are in the `dros_pool_spade_contigs_n.fa`  The `_n` in this file name indicates that these are contigs remaining after (n)t level classification.  
+
+The [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script runs diamond using this file as input.  Can you identify the line in that script where diamond is run?  
+
+After running diamond the pipeline performs taxonomic assignment, result tabulation, and outputting of virus-mapping contigs as above.  
+
+Have a look at the tally file for the diamond assignments: `less dros_pool_spade_contigs_n.fa.dmd_nr.tally`.  What taxa were identified this way?  How many reads did they account for?  What was the median % identity of the alignments?  
+
+The pipeline also outputs putative viral contigs.  For example, you should see a file named `dros_pool_spade_contigs_n.fa_33724_Nilaparvata_lugens_reovirus.fa`.   This file contains putative reovirus contigs that were identified by protein-level similarity to a reovirus from a brown planthopper insect (`Nilaparvata lugens`).  Note that since these were identified by protein level alignments, this means that these new sequences represent a 'new' virus: one for which closely related database sequences don't exist.  Cool, huh?
+
+Note that some contigs are not assigned either by nucleotide or protein level similarity.  These contigs are in a file named `dros_pool_spade_contigs_nn.fa`.  Have a look at these contigs.  
+
 ### <a name="section12"></a> 12. Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).
 
+The last step of the pipeline is to assign "singleton" reads that didn't assemble into contigs using a similar approach as that outlined above for contigs.  First, reads are assigned by nt-nt alignments using the [gsnap aligner](http://research-pub.gene.com/gmap/). Then, remaining reads are assigned using the diamond aligner at a protein level.  
+
+The singleton analyse  are run by the command
+```
+# taxonomically assign reads that didn't assemble (singletons)
+./read_based_taxonomic_assessment_single_end dros_pool
+```
+
+The singleton reads are found in the file `dros_pool_R1_fuhs.fastq` 
+
+The output files from this read based taxonomic assessment are similar to those outlined above for contigs.
 
 
-
+## Other considerations
 
 ### <a name="section_different_host"></a>Filtering a different host species
+
+If you are going to be running this pipeline on your own datasets, it is likely that you will want to filter reads from a different host genome.  It's pretty straightforward to modify the pipeline to do this.
+
+The host filtering in the examples above occurs via the script `filter_fly_reads_single_end`.  You need to do 2 things to change filtering to a different host:
+
+1. Make a new host filtering script.
+2. Modify the pipeline to use this new script.
+
+#### 1. Making a new host filtering script
+
+The easiest way to make a new host filtering script is to copy an existing one.  Say, for example, that you wanted to filter reads from `Aedes aegypti` mosquitoes.  First, you would copy the host filtering script:
+
+```
+# copy the host filtering script
+cp filter_fly_reads_single_end filter_aedes_reads_single_end
+```
+
+Then, you would want to edit this script. You could use a text editor such as nano (`nano filter_aedes_reads_single_end`).  Or you could edit it remotely using a text editor like [BBedit](https://www.barebones.com/products/bbedit/).  
+
+The lines that you will want to change in the original `filter_fly_reads_single_end` script are these lines:
+```
+# Location of bowtie2 index of genome
+btindex=/home/databases/fly/fly_genome
+
+# output suffix of files created
+output_suffix=fly_genome
+```
+
+You would want to change them so they read as follows.  
+```
+# Location of bowtie2 index of genome
+btindex=/home/mdstengl/databases/mosquito/aedes_aegypti
+
+# output suffix of files created
+output_suffix=aedes_genome
+```
+
+Note that in this example assumes the existence of a bowtie index in the directory `/home/mdstengl/databases/mosquito/`.  In real life, you would actually have needed to download the new host genome and build a bowtie2 index for it: [see below](#section_genome)
+
+If there is no genome for your host of interest, often using a relatively closely related species will work sufficiently well for the purposes of host filtering.  
+
+#### If you don't want to do host filtering
+
+If you don't want to do host filtering, you can create a bash script like this that doesn't actually do any filtering between the `_fu.fastq` and `_fuh.fastq` files.
+```
+#!/bin/bash
+id=$1
+cp ${id}_R1_fu.fastq ${id}_R1_fuh.fastq
+```
+
+Create this script, name it something like `dummy_host_filtering` and be sure to give it executable permissions using the chmod command:
+```
+chmod +x dummy_host_filtering
+```
+Then modify the appropriate line in the `run_pipeline_single_end` script as above for a different host
+
+### <a name="section_genome"></a>Downloading a new host genome
+
+In the example [above](#section_different_host), the example assumed the existince of a bowtie index named `aedes_aegypti` in the directory `/home/mdstengl/databases/mosquito/`.  
+
+These example commands would allow you to create a create such a database:
+```
+# change to your users home directory
+cd
+
+# make a new directory to hold the genome and bowtie index
+mkdir -p databases/mosquito/
+
+# change to that new directory
+cd databases/mosquito/
+
+# download the fasta file containing the Aedes aegypti genome
+curl -OL https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/002/204/515/GCF_002204515.2_AaegL5.0/GCF_002204515.2_AaegL5.0_genomic.fna.gz
+
+# unzip the compressed fasta file
+gunzip GCF_002204515.2_AaegL5.0_genomic.fna.gz
+
+# make a bowtie2 index named aedes_aegypti from this fasta file
+bowtie2-build GCF_002204515.2_AaegL5.0_genomic.fna aedes_aegypti
+```
+
+Note that an excellent way to see if there is a genome for your species of interest (or a related species) is via the NCBI taxonomy page for that species.  For instance, here is the page for the [Aedes aegypti mosquito](https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=7159&lvl=3&lin=f&keep=1&srchmode=1&unlock).  On the table on the upper right side of that page, there is a link to the page in the NCBI Genome database for this species.  If you click that link, you will be taken to [this page](https://www.ncbi.nlm.nih.gov/genome/?term=txid7159[Organism:exp]), where there is an FTP link for the fasta file for the reference genome for the species.   (There are also things like the transcriptome, annotation, etc.)
+
+Note also that the bowtie2-build step may take a while to run.  [See below](#section_screen) for an explanation of how to use the screen utility to avoid dropping a connection and interruping a long-running process like this.   
+
 ### <a name="section_own_data"></a>Using your own data
 ### <a name="section_transfer"></a>Transferring files
 ### <a name="section_simple_scheduler"></a>Running the pipeline on multiple datasets
 ### <a name="section_tally"></a>Running custom tabulations
 ### <a name="section_distribute"></a>Getting sequences for various taxa
+### <a name="section_pitfalls"></a>Pitfalls to watch out for
+### <a name="section_validation"></a>Validating putative hits
+### <a name="section_matrix"></a>Merging the results from multiple datasets
+
+### <a name="section_screen"></a> Using the screen utility to avoid dropped connections

@@ -81,7 +81,7 @@ my $usage = <<USAGE;
 
   -e <max_evalue>   only output a fasta record if the corresponding hit's evalue is below this cutoff
 
-  -v                only output virus taxids (default = no)
+  -v                only output virus taxids (default = no).  Equivalent to running $0 -t 10239
   
   -h                print this message
 
