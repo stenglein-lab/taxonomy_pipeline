@@ -75,39 +75,39 @@ f2=${id}_R2_fuh.fastq
    ./fasta_to_fasta ${id}.spades/contigs.fasta > ./${id}_spade_contigs.fa
 
 
-	# ***********************************************
-	# assess which reads align to contigs
-	# so that we can:
-	# (1) do a weighted taxonomic assessment, and 
-	# (2) taxomically assess non-aligning reads later
-	# ***********************************************
-	spades_output=${id}_spade_contigs.fa
-	big_contigs_file=${id}_spade_contigs_gt_150.fa
-	./filter_fasta_by_size -b 150 $spades_output | ./fasta_to_fasta >  $big_contigs_file
+   # ***********************************************
+   # assess which reads align to contigs
+   # so that we can:
+   # (1) do a weighted taxonomic assessment, and 
+   # (2) taxomically assess non-aligning reads later
+   # ***********************************************
+   spades_output=${id}_spade_contigs.fa
+   big_contigs_file=${id}_spade_contigs_gt_150.fa
+   ./filter_fasta_by_size -b 150 $spades_output | ./fasta_to_fasta >  $big_contigs_file
 
-	bt_index=${id}_spade_contigs_gt_150
-	bowtie2-build $big_contigs_file $bt_index
-	# bowtie2-build $spades_output $bt_index
+   bt_index=${id}_spade_contigs_gt_150
+   bowtie2-build $big_contigs_file $bt_index
+   # bowtie2-build $spades_output $bt_index
 
-	# C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
-	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
-	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f2 -p 12 -S ${f2}.${bt_index}.sam 2> ${f2}.${bt_index}.bt_log
+   # C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
+   bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
+   bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f2 -p 12 -S ${f2}.${bt_index}.sam 2> ${f2}.${bt_index}.bt_log
 
-	# count the # of reads that hit each contig 
-	./tally_sam_subjects ${f1}.${bt_index}.sam > ${id}_contig_weights.txt
+   # count the # of reads that hit each contig 
+   ./tally_sam_subjects ${f1}.${bt_index}.sam > ${id}_contig_weights.txt
 
-	# ************************************************
-	# create files of non-aligning aka singleton reads
-	# ************************************************
-	
-	# create a composite sam file: this is all R1 or R2 reads that map to contigs
-	cat ${f1}.${bt_index}.sam ${f2}.${bt_index}.sam > ${id}_R12_fuh.fastq.${bt_index}.sam
+   # ************************************************
+   # create files of non-aligning aka singleton reads
+   # ************************************************
+   
+   # create a composite sam file: this is all R1 or R2 reads that map to contigs
+   cat ${f1}.${bt_index}.sam ${f2}.${bt_index}.sam > ${id}_R12_fuh.fastq.${bt_index}.sam
 
-	# pull out read pairs for which neither read in the pair maps to a contig (singletons)
-	./fasta_from_sam -r -f $f1 ${id}_R12_fuh.fastq.${bt_index}.sam > ${id}_R1_fuhs.fastq
-	./fasta_from_sam -r -f $f2 ${id}_R12_fuh.fastq.${bt_index}.sam > ${id}_R2_fuhs.fastq
+   # pull out read pairs for which neither read in the pair maps to a contig (singletons)
+   ./fasta_from_sam -r -f $f1 ${id}_R12_fuh.fastq.${bt_index}.sam > ${id}_R1_fuhs.fastq
+   ./fasta_from_sam -r -f $f2 ${id}_R12_fuh.fastq.${bt_index}.sam > ${id}_R2_fuhs.fastq
 
-	# this file tells you how many reads map to each contig
+   # this file tells you how many reads map to each contig
    weights_file=${id}_contig_weights.txt
 
    # *********************
@@ -119,7 +119,7 @@ f2=${id}_R2_fuh.fastq
    echo "blastn contigs for $id ($f1) vs nt"
    date
 
-	# TODO: avoid harcoding this path?
+   # TODO: avoid harcoding this path?
    db="/home/databases/nr_nt/nt"
    echo "blastn -query $f1 -db $db -num_threads 24 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt"
    blastn -query $f1 -db $db -num_threads 12 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt
@@ -128,7 +128,7 @@ f2=${id}_R2_fuh.fastq
    date
 
    # get the blastn vs nt "misses"
-	# these are contigs that haven't been assigned taxonomically by the blastn step
+   # these are contigs that haven't been assigned taxonomically by the blastn step
    f1_out=${f1}.bn_nt
    ./fasta_from_blast -r $f1_out > ${id}_spade_contigs_n.fa
 
@@ -158,8 +158,8 @@ f2=${id}_R2_fuh.fastq
 
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
-	echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-	diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3 
+   echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
+   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3 
 
    # contigs with no good hit by blastn vs. nt or diamond vs. nr
    ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${id}_spade_contigs_nn.fa

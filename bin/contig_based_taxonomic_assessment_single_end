@@ -74,25 +74,25 @@ f1=${id}_R1_fuh.fastq
    ./fasta_to_fasta ${id}.spades/contigs.fasta > ./${id}_spade_contigs.fa
 
 
-	# ***********************************************
-	# assess which reads align to contigs
-	# so that we can:
-	# (1) do a weighted taxonomic assessment, and 
-	# (2) taxomically assess non-aligning reads later
-	# ***********************************************
-	spades_output=${id}_spade_contigs.fa
-	big_contigs_file=${id}_spade_contigs_gt_150.fa
-	./filter_fasta_by_size -b 150 $spades_output | ./fasta_to_fasta >  $big_contigs_file
+   # ***********************************************
+   # assess which reads align to contigs
+   # so that we can:
+   # (1) do a weighted taxonomic assessment, and 
+   # (2) taxomically assess non-aligning reads later
+   # ***********************************************
+   spades_output=${id}_spade_contigs.fa
+   big_contigs_file=${id}_spade_contigs_gt_150.fa
+   ./filter_fasta_by_size -b 150 $spades_output | ./fasta_to_fasta >  $big_contigs_file
 
-	bt_index=${id}_spade_contigs_gt_150
-	bowtie2-build $big_contigs_file $bt_index
-	# bowtie2-build $spades_output $bt_index
+   bt_index=${id}_spade_contigs_gt_150
+   bowtie2-build $big_contigs_file $bt_index
+   # bowtie2-build $spades_output $bt_index
 
-	# C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
-	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 --un ${id}_R1_fuhs.fastq -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
+   # C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
+   bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 --un ${id}_R1_fuhs.fastq -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
 
-	# count the # of reads that hit each contig 
-	./tally_sam_subjects ${f1}.${bt_index}.sam > ${id}_contig_weights.txt
+   # count the # of reads that hit each contig 
+   ./tally_sam_subjects ${f1}.${bt_index}.sam > ${id}_contig_weights.txt
 
    weights_file=${id}_contig_weights.txt
 
