@@ -275,7 +275,7 @@ Let's run the command.
 ./contig_based_taxonomic_assessment_single_end dros_pool
 ```
 
-This is going to be the slowest part of the pipeline and may take 20-30 min to complete (or longer).  
+This is going to be one of the slowest parts of the pipeline and may take 20-30 min to complete (or longer).  
 
 The first thing you should see is the output from the [spades assembler](http://cab.spbu.ru/software/spades/). Assemblers like Spades stitch together overlapping short reads into longer contigs.  This process should take a couple minutes for the number of reads remaining in the `_fuh.fastq` file.   Spades has verbose output so you will see a lot of information cascade down your screen.
 
@@ -292,17 +292,17 @@ The output of this step is a file named `dros_pool_contig_weights.txt`.  Have a 
 
 ### <a name="section6"></a> 6. BLASTN search of contigs against the NCBI nucleotide (nt) database.
 
-Once contigs have been created, it is time to try to taxonomically categorize them.  The pipeline first uses BLASTN to identify existing sequences in the NCBI nucleotide (nt) database that exceen a certain similarity threshold for each contig.  The output file created by the pipeline will be named `dros_pool_spade_contigs.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
+Once contigs have been created, it is time to try to taxonomically categorize them.  The pipeline first uses [BLASTN](https://en.wikipedia.org/wiki/BLAST_(biotechnology)) to identify existing sequences in the NCBI nucleotide (nt) database that exceen a certain similarity threshold for each contig.  The output file created by the pipeline will be named `dros_pool_spade_contigs.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
 
-Can you find the line in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script where blastn is run?
+Can you find the line in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script where blastn is run?  What is the minimum E-value threshhold used? 
 
-After blastn completes, look at the blast output file (`dros_pool_spade_contigs.fa.bn_nt`) by running the command `less dros_pool_spade_contigs.fa.bn_nt`.  Can you interpret the output?   (Hint: [this page](http://www.metagenomics.wiki/tools/blast/blastn-output-format-6) describes the column in the blast output). Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt database sequence?  What is the NCBI accession of that sequence?  What is that sequence (you can check [here](https://www.ncbi.nlm.nih.gov/genbank/)).  
+After blastn completes, look at the blast output file (`dros_pool_spade_contigs.fa.bn_nt`) by running the command `less dros_pool_spade_contigs.fa.bn_nt`.  Can you interpret the output?   (Hint: [this page](http://www.metagenomics.wiki/tools/blast/blastn-output-format-6) describes the column in the blast output). Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt database sequence?  What is the NCBI accession of that sequence?  What is that sequence? (You can check [here](https://www.ncbi.nlm.nih.gov/genbank/) by pasting in the accession).  
 
 ### <a name="section7"></a> 7. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
 
-You could go through the contigs one at a time, but that's not very practical.  The next step of the pipeline taxonomically categorizes the blast "hits" and tabulates the results in a couple different formats.  The script that does this is called `tally_blast_hits`.  Can you find where this is called in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script? Note that it is called multiple times in slightly different ways.
+You could go through the contigs one at a time, but that's not very practical.  The next step of the pipeline taxonomically categorizes the blast "hits" and tabulates the results in a couple different formats.  The script that does this is called [tally_blast_hits](../bin/tally_blast_hits).  Can you find where this is called in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script? Note that it is called multiple times in slightly different ways.
 
-The `tally_blast_hits` script does a couple things.  First it goes through the blast results and maps the database sequences to their taxa.  Note that this depends on annotation in the NCBI database. For instance, visit [this database sequence](https://www.ncbi.nlm.nih.gov/nuccore/827047338).  What species is this sequence assigned to?  Can you see where the entire taxonomic lineage of this species is noted?  Note also that sometimes this annotation is incorrect.  
+The [tally_blast_hits](../bin/tally_blast_hits) script does a couple things.  First it goes through the blast results and maps the database sequences to their taxa.  Note that this depends on annotation in the NCBI database. For instance, visit [this database sequence](https://www.ncbi.nlm.nih.gov/nuccore/827047338).  What species is this sequence assigned to?  Can you see where the entire taxonomic lineage of this species is noted?  Note also that sometimes this annotation is incorrect.  
 
 If a contig produces equally high scoring blast alignments to multiple database sequences, then it will assign this contig to the "lowest common ancestor" (LCA) of all the hits.  This means that sometimes contigs will be assigned at a higher taxonomic level (e.g. at the genus or family level).  
 
