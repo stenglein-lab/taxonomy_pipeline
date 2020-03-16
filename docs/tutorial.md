@@ -566,4 +566,4 @@ You will sometimes need to transfer files to and from a server.  There are a num
   - [Cyberduck](https://cyberduck.io/)
   - [Filezila](https://filezilla-project.org/)
 - It may be possible to connect remotely to a server using a samba interface or something similar
-- `[sftp](https://www.digitalocean.com/community/tutorials/how-to-use-sftp-to-securely-transfer-files-with-a-remote-server)` is a command line tool and protocol for transferring files between servers.  It will be worth your time to learn how to use sftp.  Especially for transferring large files (such as large .fastq files), sftp can be quite useful. 
+- [sftp](https://www.digitalocean.com/community/tutorials/how-to-use-sftp-to-securely-transfer-files-with-a-remote-server) is a command line tool and protocol for transferring files between servers.  It will be worth your time to learn how to use sftp.  Especially for transferring large files (such as large .fastq files), sftp can be quite useful. 
