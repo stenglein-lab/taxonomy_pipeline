@@ -16,23 +16,32 @@ This pipeline has been reported in a number of [publications](https://www.stengl
 
 ## Table of contents
 
-1. [Initial QC of reads.](#section1)
-2. [Filtering of low quality and adapter sequences and duplicate collapsing.](#section2)
-3. [Post-filtering QC check.](#section3)
-4. [Filtering of host-derived reads.](#section4)
-5. [Assembly of remaining host-filtered reads.](#section5)
-6. [BLASTN search of contigs against the NCBI nucleotide (nt) database.](#section6)
-7. [Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.](#section7)
-8. [Extraction of putative virus contigs.](#section8)
-9. [Diamond (BLASTX) search of NCBI protein (nr) database.](#section9)
-10. [Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.](#section10)
-11. [Extraction of putative virus contigs.](#section11)
-12. [Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).](#section12)
+- [Logging in and getting started on the aidlngs01 server](#section_login)
+- [Getting the pipeline](#section_get_pipeline)
+- [Running the pipeline](#section_run_pipeline)
+- [Main pipeline steps explained](#section_steps)
+  - [Initial QC of reads.](#section1)
+  - [Filtering of low quality and adapter sequences and duplicate collapsing.](#section2)
+  - [Post-filtering QC check.](#section3)
+  - [Filtering of host-derived reads.](#section4)
+  - [Assembly of remaining host-filtered reads.](#section5)
+  - [BLASTN search of contigs against the NCBI nucleotide (nt) database.](#section6)
+  - [Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.](#section7)
+  - [Extraction of putative virus contigs.](#section8)
+  - [Diamond (BLASTX) search of NCBI protein (nr) database.](#section9)
+  - [Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.](#section10)
+  - [Extraction of putative virus contigs.](#section11)
+  - [Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).](#section12)
+- Other topics
+  - [Filtering a different host species](#section_different_host)
+  - [Downloading a new host genome](#section_genome)
+  - [Running the pipeline on multiple datasets](#section_simple_scheduler)
+  - [Validating putative hits](#section_validation)
+  - [Merging the results from multiple datasets](#section_matrix)
+  - [Using the screen utility to avoid dropped connections](#section_screen)
 
 
-
-
-### Logging in and getting started on the aidlngs01 server
+### <a name="section_login"></a>Logging in and getting started on the aidlngs01 server
 
 First, you'll need to login to the `aidlngs01` server.  On a MacOS computer, open the Terminal app and enter:
 
@@ -77,7 +86,7 @@ You should see this file if you type the command `ls -lh` and you should see tha
 **Question:** How many reads are in this dataset? (Hint: the `wc -l` command outputs the # of lines in a file. Each fastq read uses 4 lines in typical [fastq format](https://en.wikipedia.org/wiki/FASTQ_format))
 
 
-#### Getting the pipeline
+#### <a name="section_get_pipeline"></a>Getting the pipeline
 
 The taxonomy pipeline is hosted [at github, here](https://github.com/stenglein-lab/taxonomy_pipeline).   If you visit that page, you will see the scripts and other files that make up the pipeline.  You can download them all at once using this command:
 
@@ -94,7 +103,7 @@ cp taxonomy_pipeline/bin/* .
 
 You should see a bunch of scripts now in the present working directory that constitute the pipeline if you type `ls`.
 
-#### To run the pipeline on this example dataset, you could run these commands:
+#### <a name="section_run_pipeline"></a> To run the pipeline on this example dataset, you could run these commands:
 
 #### But don't do this yet!
 ```
@@ -114,7 +123,7 @@ The pipeline would take a while to run, maybe 30 minutes for a dataset this size
 
 **Running the pipeline this way doesn't really help you understand what's happening, so let's consider the steps individually.**   We will run the commands individually rather than all at once via the main pipeline script.  
 
-### The main pipeline steps are:
+### <a name="section_steps"></a>The main pipeline steps are:
 
 1. [Initial QC of reads.](#section1)
 2. [Filtering of low quality and adapter sequences and duplicate collapsing.](#section2)
