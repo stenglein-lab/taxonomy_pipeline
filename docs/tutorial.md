@@ -24,7 +24,7 @@ This pipeline has been reported in a number of [publications](https://www.stengl
   - [Initial QC of reads.](#section1)
   - [Filtering of low quality and adapter sequences and duplicate collapsing.](#section2)
   - [Post-filtering QC check.](#section3)
-  - [Filtering of host-derived reads.](#section4)
+  - [Filtering host reads.](#section4)
   - [Assembly of remaining host-filtered reads.](#section5)
   - [BLASTN search of contigs against the NCBI nucleotide (nt) database.](#section6)
   - [Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.](#section7)
@@ -258,19 +258,21 @@ This is a long command!  Let's break it down:
 
 See the [bowtie2 manual](http://bowtie-bio.sourceforge.net/bowtie2/manual.shtml) for more info about all these settings.
 
-The main output that we care about for this command will be the `dros_pool_R1_fuh.fastq` file, which contains reads that _did not_ map to the fly genome. These are (presumably) the non-host reads that we will analyze in the rest of the pipeline.  How many reads are in this file? In other words, how many reads remain after host filtering?  What fraction of the original dataset is that?  Could this set of non-mapping reads contain host-derived reads?  What are some of the reasons that host reads might not have been filtered by this step? 
+The main output that we care about for this command will be the `dros_pool_R1_fuh.fastq` file, which contains reads that _did not_ map to the fly genome. These are (presumably) the non-host reads that we will analyze in the rest of the pipeline.  
+
+How many reads are in this file? In other words, how many reads remain after host filtering?  What fraction of the original dataset is that?  Could this set of non-mapping reads contain host-derived reads?  What are some of the reasons that host reads might not have been filtered by this step? 
 
 This command will also output a log file: `dros_pool_R1_fu.fastq.fly_genome_bt.log`. Have a look at it. What percentage of reads mapped to the host genome?  
 
 
 ### <a name="section5"></a> 5. Assembly of remaining host-filtered reads.
 
-The next 6 steps are all done by a single script, [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  The commands run here are a bit more than it is convenient to run manually, so let's run the script as is, and walk through the steps and their output.  
+The next 6 steps are all done by a single script, [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end).  The commands run here are a bit more than it is convenient to run manually, so let's run the script as is, and walk through the steps and their output.  
 
 Let's run the command.  
 ```
 # assemble non-host reads and taxonomically assign contigs
-./contig_based_taxonomic_assessment dros_pool
+./contig_based_taxonomic_assessment_single_end dros_pool
 ```
 
 This is going to be the slowest part of the pipeline and may take 20-30 min to complete (or longer).  
