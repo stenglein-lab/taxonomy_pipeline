@@ -45,33 +45,33 @@
 # 11/6/2015
 #
 
-file_base=$1
+id=$1
 
-log=${file_base}.pipeline.log
+log=${id}.pipeline.log
 
-f1=${file_base}_R1_fuh.fastq
+f1=${id}_R1_fuh.fastq
 
 # these brackets are for tee'ing stdout to the logfile
 {
 
-   echo "begin contig-based taxonomic assessment for $file_base"
+   echo "begin contig-based taxonomic assessment for $id"
    date
 
    # **********************************
    # first, create contigs using spades
    # **********************************
 
-   echo "run spades for $file_base"
+   echo "run spades for $id"
    date
 
-   echo "spades.py -o ${file_base}.spades -s $f1 -t 24 -m 150"
-   spades.py -o ${file_base}.spades -s $f1 -t 24 -m 150
+   echo "spades.py -o ${id}.spades -s $f1 -t 24 -m 150"
+   spades.py -o ${id}.spades -s $f1 -t 24 -m 150
 
-   echo "done running spades for $file_base"
+   echo "done running spades for $id"
    date
 
    # cp contigs file (fasta_to_fasta converts to 1-line fasta format)
-   ./fasta_to_fasta ${file_base}.spades/contigs.fasta > ./${file_base}_spade_contigs.fa
+   ./fasta_to_fasta ${id}.spades/contigs.fasta > ./${id}_spade_contigs.fa
 
 
 	# ***********************************************
@@ -80,16 +80,16 @@ f1=${file_base}_R1_fuh.fastq
 	# (1) do a weighted taxonomic assessment, and 
 	# (2) taxomically assess non-aligning reads later
 	# ***********************************************
-	spades_output=${file_base}_spade_contigs.fa
-	big_contigs_file=${file_base}_spade_contigs_gt_150.fa
+	spades_output=${id}_spade_contigs.fa
+	big_contigs_file=${id}_spade_contigs_gt_150.fa
 	./filter_fasta_by_size -b 150 $spades_output | ./fasta_to_fasta >  $big_contigs_file
 
-	bt_index=${file_base}_spade_contigs_gt_150
+	bt_index=${id}_spade_contigs_gt_150
 	bowtie2-build $big_contigs_file $bt_index
 	# bowtie2-build $spades_output $bt_index
 
 	# C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
-	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 --un ${file_base}_R1_fuhs.fastq -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
+	bowtie2 -x $bt_index --local --score-min C,120,1 -q -U $f1 --un ${id}_R1_fuhs.fastq -p 12 -S ${f1}.${bt_index}.sam 2> ${f1}.${bt_index}.bt_log
 
 	# count the # of reads that hit each contig 
 	./tally_sam_subjects ${f1}.${bt_index}.sam > ${id}_contig_weights.txt
@@ -100,21 +100,21 @@ f1=${file_base}_R1_fuh.fastq
    # blastn contigs vs. nt
    # *********************
 
-   f1=${file_base}_spade_contigs.fa
+   f1=${id}_spade_contigs.fa
 
-   echo "blastn contigs for $file_base ($f1) vs nt"
+   echo "blastn contigs for $id ($f1) vs nt"
    date
 
    db="/home/databases/nr_nt/nt"
    echo "blastn -query $f1 -db $db -num_threads 12 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt"
    blastn -query $f1 -db $db -num_threads 12 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt
 
-   echo "done with blastn for $file_base"
+   echo "done with blastn for $id"
    date
 
    # get the blastn vs nt "misses"
    f1_out=${f1}.bn_nt
-   ./fasta_from_blast -r $f1_out > ${file_base}_spade_contigs_n.fa
+   ./fasta_from_blast -r $f1_out > ${id}_spade_contigs_n.fa
 
    # *******************************************
    # Taxonomic assessment of nt-based alignments
@@ -135,10 +135,10 @@ f1=${file_base}_R1_fuh.fastq
    # run diamond to identify protein-level alignments
    # ************************************************
 
-   echo "diamond remaining contigs for $file_base vs. nr" 
+   echo "diamond remaining contigs for $id vs. nr" 
    date
 
-   f1=${file_base}_spade_contigs_n.fa
+   f1=${id}_spade_contigs_n.fa
 
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
@@ -146,9 +146,9 @@ f1=${file_base}_R1_fuh.fastq
    diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
 
    # contigs with no good hit by blastn vs. nt or diamond vs. nr
-   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_spade_contigs_nn.fa
+   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${id}_spade_contigs_nn.fa
 
-   echo "done with diamond for $file_base" 
+   echo "done with diamond for $id" 
    date
 
    # *******************************************
@@ -169,7 +169,7 @@ f1=${file_base}_R1_fuh.fastq
    # ***************************************************************************
    ./distribute_fasta_by_blast_taxid -v ${f1} ${f1}.dmd_nr
 
-   echo "done with contig-based taxonomic assessment for $file_base"
+   echo "done with contig-based taxonomic assessment for $id"
    date
 
 
