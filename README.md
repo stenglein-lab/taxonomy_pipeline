@@ -4,7 +4,13 @@ This is the pipeline used in the [Stenglein lab](http://www.stengleinlab.org) to
 
 This pipeline has been reported in a number of [publications](https://www.stengleinlab.org/papers/) from our lab.
 
-This pipeline has a number of dependencies and is not necessarily easily portable.  The dependencies include:
+For information on how to run this pipeline, please read [this tutorial](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md)
+
+For information on how to setup a server to run this pipeline, please see [these instructions]()
+
+
+
+This pipeline has several dependencies, including: and is not necessarily easily portable.  The dependencies include:
 
 - [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 - [bowtie2](hhttp://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)
@@ -27,6 +33,7 @@ We download and setup NCBI databases using these scripts:
 - https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/fetch_nr_nt
 - https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/build_indexes
 
+
 The [run_pipeline_one_sample](./run_pipeline_one_sample) script is the main entry point to the pipeline.
 
 The main steaps in the pipeline are:
@@ -39,7 +46,6 @@ The main steaps in the pipeline are:
 - taxonomic assement of non contig-mapping reads, first by nt to nt alignments (blastn) and then by translated-nt to protein alignments (diamond)  [contig_based_taxonomic_assessment](./contig_based_taxonomic_assessment)
 
 
-
-We are working to make this pipeline more portable and welcome your feedback in the meantime.
+We welcome your feedback in the meantime.
 
 This script can be run in parallel on multiple datasets using a tool like [gnu parallel](https://www.gnu.org/software/parallel/).  We usually run it via our own [simple scheduler](https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/simple_scheduler)

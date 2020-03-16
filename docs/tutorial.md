@@ -1,16 +1,38 @@
-## Stenglein lab taxonomy pipeline tutorial
+# Stenglein lab taxonomy pipeline tutorial
 
 This tutorial describes how to run the [Stenglein lab's](http://www.stengleinlab.org) [taxonomy pipeline](http://github.com/stenglein-lab/taxonomy_pipeline) to perform metagenomic classification.
 
 This tutorial is tailored for users on the aidlngs01 server but could be useful to users who wish to use the pipeline on another server.   See [setup instructions](./setup_instructions.md)for how to get a computer setup to run the pipeline.  
 
 
-### Pipeline overview
+## Pipeline overview
 
-The goal of the pipeline is to taxonomically classify sequences in shotgun sequencing datasets.  The overall strategy is similar to that used by the [SURPI pipeline](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4079973/) and the [ID-Seq](https://github.com/chanzuckerberg/idseq-web) platform.  (This is because all are more or less descendents of the [DeRisi lab](http://derisilab.ucsf.edu/)).  
+The goal of the pipeline is to taxonomically classify sequences in shotgun sequencing datasets.  The overall strategy is similar to that used by the [SURPI pipeline](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4079973/) and the [ID-Seq](https://github.com/chanzuckerberg/idseq-web) platform.  
+
+The pipeline is very well suited for identifying virus and virus-like sequences in metagenomic datasets, but can be used for other purposes as well.
+
+This pipeline has been reported in a number of [publications](https://www.stengleinlab.org/papers/) from our lab.
 
 
-### Logging in and getting started
+## Table of contents
+
+1. [Initial QC of reads.](#section1)
+2. [Filtering of low quality and adapter sequences and duplicate collapsing.](#section2)
+3. [Post-filtering QC check.](#section3)
+4. [Filtering of host-derived reads.](#section4)
+5. [Assembly of remaining host-filtered reads.](#section5)
+6. [BLASTN search of contigs against the NCBI nucleotide (nt) database.](#section6)
+7. [Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.](#section7)
+8. [Extraction of putative virus contigs.](#section8)
+9. [Diamond (BLASTX) search of NCBI protein (nr) database.](#section9)
+10. [Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.](#section10)
+11. [Extraction of putative virus contigs.](#section11)
+12. [Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).](#section12)
+
+
+
+
+### Logging in and getting started on the aidlngs01 server
 
 First, you'll need to login to the `aidlngs01` server.  On a MacOS computer, open the Terminal app and enter:
 
@@ -488,5 +510,34 @@ make_taxa_matrix *.bn_nt.tally > taxa_matrix.txt
 The resulting tab-delimited file `taxa_matrix.txt` can be imported into programs like Excel or R for further analysis.
 
 
-
 ### <a name="section_screen"></a> Using the screen utility to avoid dropped connections
+
+If you are running a process that is going to take a long time to complete, it is useful to run it via the [gnu screen utility](https://www.gnu.org/software/screen/).  Screen allow you to create a persistent session on a server that will not terminate even if you disconnect from the server.  This avoids the artificial termination of a long-running process before it completes.  
+
+Some useful screen command examples:
+
+```
+# start a screen session
+screen 
+
+# start a named screen session
+screen -S taxonomy
+
+# detach from a session
+ctrl-a d  
+
+# stop (terminate) a session
+exit  --> close session
+
+# list your screen sessions
+screen -ls --> list sessions
+
+# re-attach to a detached session --> may need to run as:
+screen -r  
+
+# re-attach to a particular detached session, of more than one exists 
+screen -r session_id  
+
+# for instance:
+screen -r taxonomy
+```
