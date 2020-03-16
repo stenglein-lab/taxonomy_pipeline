@@ -408,7 +408,7 @@ In the example [above](#section_different_host), the example assumed the existin
 
 These example commands would allow you to create a create such a database:
 ```
-# change to your users home directory
+# change to your user's home directory
 cd
 
 # make a new directory to hold the genome and bowtie index
@@ -431,13 +431,62 @@ Note that an excellent way to see if there is a genome for your species of inter
 
 Note also that the bowtie2-build step may take a while to run.  [See below](#section_screen) for an explanation of how to use the screen utility to avoid dropping a connection and interruping a long-running process like this.   
 
-### <a name="section_own_data"></a>Using your own data
-### <a name="section_transfer"></a>Transferring files
+
 ### <a name="section_simple_scheduler"></a>Running the pipeline on multiple datasets
-### <a name="section_tally"></a>Running custom tabulations
-### <a name="section_distribute"></a>Getting sequences for various taxa
-### <a name="section_pitfalls"></a>Pitfalls to watch out for
+
+It is useful to be able to run the pipeline on a number of datasets.  There are a number of ways to do this.  For instance, you could use the gnu [parallel command](https://www.gnu.org/software/parallel/).  We are working on implementing a [nextflow](https://www.nextflow.io/) version of the pipeline, which would also accomplish this. 
+
+In the meantime, in the Stenglein lab, we often take advantage of utility called `[simple_scheduler](https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/simple_scheduler)` that accomplishes this.  
+
+To run the pipeline in parallel, you could use simple scheduler as follows:
+```
+# run the pipeline in 4-way parallel on the datasets named in dataset_names.txt
+simple_scheduler -a 4 ./run_pipeline_single_end `cat dataset_names.txt` 
+```
+
+In this example, you would create a text file named `dataset_names.txt` that contained the names of your datasets (one per line).  For example:
+```
+dros_pool_1
+dros_pool_2
+dros_pool_3
+etc
+```
+
+**Note that it would not be advisable to run the pipeline in parallel on more than ~4-6 datasets at once.  Some of the steps use a fair amount of memory (RAM), and you want to avoid bogging down the server.**
+
 ### <a name="section_validation"></a>Validating putative hits
+
+You should not blindly trust the results of the pipeline (or any bioinformatics analysis for that matter).  Here are some relatively simple things you can do to validate certain aspects of the results.
+
+1. Is a taxonomic assignment correct?
+
+If the pipeline indicates that a contig was assigned to a particular organism, one simple thing to do is to copy the contig sequence and blast it on the [NCBI website](https://blast.ncbi.nlm.nih.gov/Blast.cgi?PAGE_TYPE=BlastSearch).  If the contig was assigned at a protein level, I will often do this both as a blastn search and a blastx search.
+
+2. Is a contig assembled correctly?
+
+Say you've pulled out a putative virus-derived contig. One of the first steps we will do to validate it is to re-map reads from the dataset back to the contig.  For example, say you wanted to validate the assembly of the galbut virus-derived contigs from the examples above.  You could run:
+```
+# make a new bowtie2 index from the putative galbut virus contigs
+bowtie2-build dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa galbut_index
+
+# use bowtie2 to map reads back:
+bowtie2 -x galbut_index -q -U dros_pool_R1_fuh.fastq --local --score-min C,120,1 --no-unal --threads 12 -S dros_pool_R1_fuh.fastq.bt_galbut.sam
+```
+
+In this example, the sam file created by bowtie2 describes alignment of reads to the putative galbut virus contigs.  This sam file can be imported into a tool like Geneious to visualize the mapped reads and look for assembly errors.
+
 ### <a name="section_matrix"></a>Merging the results from multiple datasets
+
+The pipeline contains a script named `[make_taxa_matrix]()` that can be used to combine the results from multiple datasets.  This script takes as input the .tally files described above and will output a matrix (table), where rows are datasets and columns are taxa.  For example:
+```
+# run the script by itself for usage information
+make_taxa_matrix
+
+# merge the results from nucleotide-level taxa tabulation for multiple datasets
+make_taxa_matrix *.bn_nt.tally > taxa_matrix.txt
+```
+The resulting tab-delimited file `taxa_matrix.txt` can be imported into programs like Excel or R for further analysis.
+
+
 
 ### <a name="section_screen"></a> Using the screen utility to avoid dropped connections
