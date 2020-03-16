@@ -2,7 +2,7 @@
 
 This tutorial describes how to run the [Stenglein lab's](http://www.stengleinlab.org) [taxonomy pipeline](http://github.com/stenglein-lab/taxonomy_pipeline) to perform metagenomic classification.
 
-This tutorial is tailored for users on the aidlngs01 server but could be useful to users who wish to use the pipeline on another server.   See [setup instructions](./setup_instructions.md)for how to get a computer setup to run the pipeline.  
+This tutorial is tailored for users on the aidlngs01 server but could be useful to users who wish to use the pipeline on another server.   See [setup instructions](./server_setup_instructions.md) for how to get a computer setup to run the pipeline.  
 
 
 ## Pipeline overview
