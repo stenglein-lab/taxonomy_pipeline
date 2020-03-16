@@ -88,7 +88,7 @@ cp /data/training/taxonomy_pipeline/dros_pool_R1.fastq .
 
 You should see this file if you type the command `ls -lh` and you should see that its size is about 1.4Gb.  
 
-**Question:** How many reads are in this dataset? (Hint: the `wc -l` command outputs the # of lines in a file. Each fastq read uses 4 lines in typical [fastq format](https://en.wikipedia.org/wiki/FASTQ_format))
+**Question:** How many reads are in this dataset? (Hint: the `wc -l` command outputs the # of lines in a file, so you can run `wc -l dros_pool_R1.fastq` to count the # of lines in that file. Each fastq read uses 4 lines in typical [fastq format](https://en.wikipedia.org/wiki/FASTQ_format))
 
 
 #### <a name="section_get_pipeline"></a>Getting the pipeline
@@ -110,7 +110,7 @@ You should see a bunch of scripts now in the present working directory that cons
 
 #### <a name="section_run_pipeline"></a> To run the pipeline on this example dataset, you could run these commands:
 
-#### But don't do this yet!
+##### But don't do this yet!
 ```
 # activate the conda environment needed for the pipeline
 conda activate taxonomy 
@@ -122,7 +122,9 @@ conda activate taxonomy
 
 The `conda activate` command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
 
-Note that the input to the pipeline is the name of the dataset, and **the pipeline expects a file whose name is `<dataset>_R1.fastq` to exist in your present directory** .  For a paired-end analysis, the equivalent command would be `./run_pipeline <dataset_name>` and the pipeline would expect that two files exist: `<dataset_name>_R1.fastq` and `<dataset_name>_R2.fastq`
+Note that the input to the pipeline is the name of the dataset, and the pipeline expects a file whose name is `<dataset>_R1.fastq` to exist in your present directory.  
+
+For a paired-end analysis, the equivalent command would be `./run_pipeline <dataset_name>` and the pipeline would expect that two files exist: `<dataset_name>_R1.fastq` and `<dataset_name>_R2.fastq`
 
 The pipeline would take a while to run, maybe 30 minutes for a dataset this size on this server.   
 
