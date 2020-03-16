@@ -43,6 +43,8 @@ This pipeline has been reported in a number of [publications](https://www.stengl
 
 ### <a name="section_login"></a>Logging in and getting started on the aidlngs01 server
 
+This section describes how to login to the aidlngs01 server, hosted at [CSU](http://www.colostate.edu).  This will not be that useful for folks not at CSU.
+
 First, you'll need to login to the `aidlngs01` server.  On a MacOS computer, open the Terminal app and enter:
 
 ```
@@ -541,7 +543,7 @@ exit
 # list your screen sessions
 screen -ls 
 
-# re-attach to a detached session --> may need to run as:
+# re-attach to a detached session (if there is only one)
 screen -r  
 
 # re-attach to a particular detached session, of more than one exists 
