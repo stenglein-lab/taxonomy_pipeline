@@ -17,6 +17,7 @@ This pipeline has been reported in a number of [publications](https://www.stengl
 ## Table of contents
 
 - [Logging in and getting started on the aidlngs01 server](#section_login)
+- [Setting up to run the tutorial](#section_setup)
 - [Getting the pipeline](#section_get_pipeline)
 - [Running the pipeline](#section_run_pipeline)
 - [Main pipeline steps explained](#section_steps)
@@ -58,6 +59,8 @@ Note that if you are off the CSU campus, you will have [VPN in](https://www.acns
 When you first login, you will be asked a question about an `"ECDSA key fingerprint"`.  Answer yes to continue.  You should only see this the first time you login.  You'll also see some information about a conda environment installing on your first login, which may run for a few minutes. 
 
 If you're analyzing your own dataset, you'll have to transfer the sequence data (fastq files) to the server.  For this tutorial, we will analyze an existing dataset.  This dataset is shotgun 1x150 RNA sequencing data from wild caught [Drosophila spp.](http://obbard.bio.ed.ac.uk/photos.html) flies.  (Thanks to Reyes Murrieta for catching the flies and Emily Fitzmeyer for preparing the sequencing library and generating the data).  
+
+### <a name="section_setup"></a>Setting up to run the tutorial
 
 Let's start getting things into place.  You should be in your home directory on the aidlngs01 server, so your terminal should look something like this:
 
