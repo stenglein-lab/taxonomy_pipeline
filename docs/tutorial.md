@@ -508,7 +508,7 @@ In this example, the sam file created by bowtie2 describes alignment of reads to
 
 ### <a name="section_matrix"></a>Merging the results from multiple datasets
 
-The pipeline contains a script named `[make_taxa_matrix]()` that can be used to combine the results from multiple datasets.  This script takes as input the .tally files described above and will output a matrix (table), where rows are datasets and columns are taxa.  For example:
+The pipeline contains a script named `[make_taxa_matrix](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/bin/make_taxa_matrix)` that can be used to combine the results from multiple datasets.  This script takes as input the .tally files described above and will output a matrix (table), where rows are datasets and columns are taxa.  For example:
 ```
 # run the script by itself for usage information
 make_taxa_matrix
@@ -536,10 +536,10 @@ screen -S taxonomy
 ctrl-a d  
 
 # stop (terminate) a session
-exit  --> close session
+exit  
 
 # list your screen sessions
-screen -ls --> list sessions
+screen -ls 
 
 # re-attach to a detached session --> may need to run as:
 screen -r  
