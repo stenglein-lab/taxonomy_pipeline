@@ -3,7 +3,7 @@
 #
 # This script attempts to taxonomically assign reads (that don't map to contigs)
 #
-# It uses gsnapl to align reads to the nt database and pulls out reads that
+# It uses blastn to align reads to the nt database and pulls out reads that
 # produce good nt-level alignments
 #
 # It then uses diamond to align the remaining reads to the nr database. 
@@ -23,7 +23,7 @@
 #
 #  Programs:
 #
-#  gsnapl
+#  blastn
 #  diamond
 #  and other scripts in this repository
 #
@@ -57,10 +57,9 @@ log=${file_base}.pipeline.log
    f1_out=${f1}.bn_nt
    ./fasta_from_blast -r $f1_out > ${file_base}_R1_fuhsn.fa
 
-   echo "tallying gsnap vs. nt hits" 
+   echo "tallying blastn vs. nt hits" 
    date 
    ./tally_blast_hits -lca $f1_out  > ${f1_out}.tally
-	# tally_blast_hits -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.desc_tally
    ./tally_blast_hits -lca -t -ti -o tab_tree_tally $f1_out > ${f1_out}.tab_tree_tally
 
 
@@ -87,7 +86,6 @@ log=${file_base}.pipeline.log
 
    echo "tallying diamond vs. nr hits" 
    ./tally_blast_hits -lca $f1_out  > ${f1_out}.tally  
-   # tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
    ./tally_blast_hits -lca -t -ti -o tab_tree_tally $f1_out > $f1_out.tab_tree_tally 
 
    echo "done tallying" 

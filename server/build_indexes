@@ -39,13 +39,13 @@ date
 diamond makedb --in nr.fasta -d nr
 mv nr.dmnd ..
 
-echo "creating GSNAP index of nt database"
-date
-gmap_build -D . -d nt_gsnap nt.fasta -L
+# echo "creating GSNAP index of nt database"
+# date
+# gmap_build -D . -d nt_gsnap nt.fasta -L
 # delete the old index
-rm -rf ../nt_gsnap
+# rm -rf ../nt_gsnap
 # move the new one into place
-mv -f nt_gsnap ..
+# mv -f nt_gsnap ..
 
 ## echo "creating HISAT/Bowtie2 index of nt database"
 ## date
