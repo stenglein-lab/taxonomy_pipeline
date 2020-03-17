@@ -345,7 +345,9 @@ The pipeline by default also outputs putative virus-mapping contigs into separat
 
 The command responsible for doing this is named [distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid).  The pipeline uses this script to create one fasta file for each virus taxon identified.  
 
-Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`?   Output the contents of this file by running `cat dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`.  How many galbut virus-mapping contigs were there?  How high are the coverage levels of these? 
+Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`. Output the contents of this file by running `cat dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`.  
+
+How many galbut virus-mapping contigs were there?  How high are the coverage levels of these? 
 
 Like [tally_blast_hits](../bin/tally_blast_hits), the [distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid) script is configurable.  You can run it multiple ways to get the sequences of contigs that were assigned at any taxonomic level.  Here are some examples:
 
@@ -365,7 +367,7 @@ Exercise: you should see in your .tally file that the pipeline identified Wolbac
 
 The next three steps are also run as part of [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  
 
-After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs using protein-level similarity.  The pipelie uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (Q: why is this so?).  
+After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs using protein-level similarity.  The pipeline uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (Q: why is this so?).  
 
 The contigs that didn't produce a nucleotide-level similarity alignment are in the `dros_pool_spade_contigs_n.fa`  The `_n` in this file name indicates that these are contigs remaining after (n)t level classification.  
 
@@ -440,7 +442,7 @@ If there is no genome for your host of interest, often using a relatively closel
 
 #### 2. Changing the main pipeline script to filter the appropriate host
 
-Once you've created a new host filtering script, you'll need to change the main pipeline file to use it.  The relevant line in `[run_pipeline_single_end](../bin/run_pipeline_single_end)` is:
+Once you've created a new host filtering script, you'll need to change the main pipeline file to use it.  The relevant line in [run_pipeline_single_end](../bin/run_pipeline_single_end) is:
 ```
 host_filtering_script=filter_fly_reads_single_end
 ```
@@ -450,11 +452,11 @@ In this example, you would want to change this by editing the file to:
 host_filtering_script=filter_aedes_reads_single_end
 ```
 
-Note that the comments in the `[script](../bin/run_pipeline_single_end)` describe a strategy to use different hosts for different datasets.
+Note that the comments in the [script](../bin/run_pipeline_single_end) describe a strategy to use different hosts for different datasets.
 
 ##### Host filtering paired-end data:
 
-For paired end datasets, you'd want to change the `[run_pipeline](../bin/run_pipeline)` script.  [filter_human_reads](../bin/filter_human_reads) is an example of a paired-end host filtering script.
+For paired end datasets, you'd want to change the [run_pipeline](../bin/run_pipeline) script.  [filter_human_reads](../bin/filter_human_reads) is an example of a paired-end host filtering script.
 
 #### If you don't want to do host filtering
 

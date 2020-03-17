@@ -14,7 +14,7 @@ conda create --name taxonomy --file taxo_recipe.yaml
 
 #### <a name="section_dependencies"></a> Dependencies.
 
-This pipeline has several main dependencies, including: 
+This pipeline has several main dependencies (included in the conda environment described above), including: 
 
 - [fastqc](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 - [bowtie2](hhttp://bowtie-bio.sourceforge.net/bowtie2/manual.shtml)
@@ -29,7 +29,7 @@ The pipeline also expects local installations of the NCBI nt/nr databases, as we
 
 ### Installing NCBI databases
 
-The pipeline needs databases of nucleotide (nt) and protein (nr) sequences from [NCBI](https://www.ncbi.nlm.nih.gov/).  These databases are pretty big.  Expect that they will take up something ~1Tb of disk space at least. 
+The pipeline needs databases of nucleotide (nt) and protein (nr) sequences from [NCBI](https://www.ncbi.nlm.nih.gov/).  These databases are pretty big.  Expect that they will take up something like ~1Tb of disk space (and they continue to grow) . 
 
 We download and setup NCBI databases using the scripts in this repository in the server directory.  The main scripts to run are:
 

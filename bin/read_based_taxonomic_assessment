@@ -8,7 +8,7 @@
 #
 # It then uses diamond to align the remaining reads to the nr database. 
 #
-# After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
+# After each of these alignment steps, taxonomic reports (.tally, .tab_tree_tally, etc.) are 
 # created and contigs aligning to viral taxa are output to files
 #
 # The script takes one argument as input a file "base name"
@@ -19,22 +19,13 @@
 # created as part of the contig_based_taxonomic_assessment script
 #
 # There are also a number of other scripts and programs (spades.py, bowtie2, ...) that this script expects
-# to be in the user's PATH:
+# to be in the user's PATH or environment:
 #
 #  Programs:
 #
 #  gsnapl
-#
-#  blastn
 #  diamond
-#
-#  Scripts I've written:
-#
-#  fasta_from_gsnap
-#  reconcile_read2_file
-#  fastq_to_fasta
-#  tally_blast_hits 
-#  distribute_fasta_by_blast_taxid 
+#  other scripts in this repository
 #
 # Mark Stenglein
 #
@@ -59,35 +50,33 @@ log=${file_base}.pipeline.log
    date
 
    nt_index=/home/databases/nr_nt/nt/
-   gsnapl --use-shared-memory=1 -B 4 -t 12 --npaths=10  --gmap-mode=none --nofails --ordered -D $nt_index -d nt $f1 > ${f1}.gsnap
+   gsnapl -t 12 --npaths=10 --nofails -A m8 -D $nt_index -d nt $f1 > ${f1}.gsnap
 
    # get the gsnap vs nt "misses"
    f1_out=${f1}.gsnap
-   fasta_from_gsnap -r $f1_out > ${file_base}_R1_fuhsn1.fastq
+   ./fasta_from_blast -r $f1_out > ${file_base}_R1_fuhsn1.fastq
 
    # filter out R2 reads where R1 had a good gsnap hit vs. nt
-   reconcile_read2_file ${file_base}_R1_fuhsn1.fastq ${file_base}_R2_fuhs.fastq > ${file_base}_R2_fuhsn1.fastq 
+   ./reconcile_read2_file ${file_base}_R1_fuhsn1.fastq ${file_base}_R2_fuhs.fastq > ${file_base}_R2_fuhsn1.fastq 
 
    f2=${file_base}_R2_fuhsn1.fastq 
 
-   gsnapl --use-shared-memory=1 -B 4 -t 12 --npaths=10 -A m8 --gmap-mode=none --nofails --ordered -D $nt_index -d nt $f2 > ${f2}.gsnap
-   fasta_from_blast -r ${f2}.gsnap > ${file_base}_R2_fuhsn.fastq
+   gsnapl -t 12 --npaths=10 -A m8 --nofails -D $nt_index -d nt $f2 > ${f2}.gsnap
+   ./fasta_from_blast -r ${f2}.gsnap > ${file_base}_R2_fuhsn.fastq
 
    echo "filter out remaining R1 reads where R2 had a good gsnap hit vs. nt" 
-   reconcile_read2_file ${file_base}_R2_fuhsn.fastq ${file_base}_R1_fuhsn1.fastq > ${file_base}_R1_fuhsn.fastq 
+   ./reconcile_read2_file ${file_base}_R2_fuhsn.fastq ${file_base}_R1_fuhsn1.fastq > ${file_base}_R1_fuhsn.fastq 
 
-   # todo: assembly and map reads to contigs -> define taxonomy of assemblies
    # todo: deal w/ R1/R2 concordance/discordance/tax-assignment more elegantly
 
    echo "tallying gsnap vs. nt hits" 
    date 
-   tally_blast_hits -lca ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
-   tally_blast_hits -lca -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
-   tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   ./tally_blast_hits -lca ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
+   ./tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap
 
    # pull out hits to taxa of interest
-   fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
-   fastq_to_fasta  ${file_base}_R2_fuhs.fastq >  ${file_base}_R2_fuhs.fa
+   ./fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
+   ./fastq_to_fasta  ${file_base}_R2_fuhs.fastq >  ${file_base}_R2_fuhs.fa
 
    cat ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R2_fuhsn1.fastq.gsnap > ${file_base}_R12_fuhs.fastq.gsnap
 
@@ -96,8 +85,8 @@ log=${file_base}.pipeline.log
    # distribute_fasta_by_blast_taxid -f taxids_of_interest.txt  ${file_base}_R2_furg.fa ${file_base}_R12_furg.fastq.gsnap 
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
-   distribute_fasta_by_blast_taxid -v ${file_base}_R2_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
+   ./distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
+   ./distribute_fasta_by_blast_taxid -v ${file_base}_R2_fuhs.fa ${file_base}_R12_fuhs.fastq.gsnap 
 
    # diamond
 
@@ -109,35 +98,34 @@ log=${file_base}.pipeline.log
 
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
-   echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
+   echo "diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
+   diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
 
-   fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_R1_fuhsnn1.fastq 
+   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_R1_fuhsnn1.fastq 
 
    echo "filter out R2 reads where R1 had a good diamond hit vs. nr" 
-   reconcile_read2_file ${file_base}_R1_fuhsnn1.fastq ${file_base}_R2_fuhsn.fastq > ${file_base}_R2_fuhsnn1.fastq 
+   ./reconcile_read2_file ${file_base}_R1_fuhsnn1.fastq ${file_base}_R2_fuhsn.fastq > ${file_base}_R2_fuhsnn1.fastq 
 
    f2=${file_base}_R2_fuhsnn1.fastq 
 
    echo "diamond remaining hits for $file_base ($f2) vs. nr" 
    date 
 
-   echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f2}.dmd_nr --outfmt 6 --query ${f2} --unal 0 --evalue 1e-3
+   echo "diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
+   diamond blastx --db $dmd_index --threads 16 --out ${f2}.dmd_nr --outfmt 6 --query ${f2} --unal 0 --evalue 1e-3
 
-   fasta_from_blast -r -f ${file_base}_R2_fuhsnn1.fastq ${file_base}_R2_fuhsnn1.fastq.dmd_nr > ${file_base}_R2_fuhsnn.fastq 
+   ./fasta_from_blast -r -f ${file_base}_R2_fuhsnn1.fastq ${file_base}_R2_fuhsnn1.fastq.dmd_nr > ${file_base}_R2_fuhsnn.fastq 
 
    echo "filter out remaining R1 reads where R2 had a good diamond hit vs. nr" 
-   reconcile_read2_file ${file_base}_R2_fuhsnn.fastq ${file_base}_R1_fuhsnn1.fastq > ${file_base}_R1_fuhsnn.fastq
+   ./reconcile_read2_file ${file_base}_R2_fuhsnn.fastq ${file_base}_R1_fuhsnn1.fastq > ${file_base}_R1_fuhsnn.fastq
 
    echo "done with diamond " 
    date 
 
    # todo: deal w/ R1/R2 concordance/discordance/tax-assignment more elegantly
    echo "tallying diamond vs. nr hits" 
-   tally_blast_hits -lca ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
-   tally_blast_hits -lca -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
-   tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   ./tally_blast_hits -lca ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
+   ./tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr 
 
    echo "done tallying" 
    date 
@@ -145,12 +133,12 @@ log=${file_base}.pipeline.log
    echo "pulling out virus-derived reads (diamond hits)" 
    cat ${file_base}_R1_fuhsn.fastq.dmd_nr ${file_base}_R2_fuhsnn1.fastq.dmd_nr > ${file_base}_R12_fuhsn.fastq.dmd_nr 
 
-   fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
-   fastq_to_fasta ${file_base}_R2_fuhsn.fastq > ${file_base}_R2_fuhsn.fa
+   ./fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
+   ./fastq_to_fasta ${file_base}_R2_fuhsn.fastq > ${file_base}_R2_fuhsn.fa
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R1_fuhsn.fa ${file_base}_R12_fuhsn.fastq.dmd_nr 
-   distribute_fasta_by_blast_taxid.pl -v ${file_base}_R2_fuhsn.fa ${file_base}_R12_fuhsn.fastq.dmd_nr 
+   ./distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhsn.fa ${file_base}_R12_fuhsn.fastq.dmd_nr 
+   ./distribute_fasta_by_blast_taxid -v ${file_base}_R2_fuhsn.fa ${file_base}_R12_fuhsn.fastq.dmd_nr 
 
    echo "done with read-based taxonomic assessment"
    date

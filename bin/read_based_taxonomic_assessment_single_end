@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 #
 # This script attempts to taxonomically assign reads (that don't map to contigs)
@@ -8,7 +8,7 @@
 #
 # It then uses diamond to align the remaining reads to the nr database. 
 #
-# After each of these alignment steps, taxonomic reports (.tally, .tree_tally, etc.) are 
+# After each of these alignment steps, taxonomic reports (.tally, .tab_tree_tally, etc.) are 
 # created and contigs aligning to viral taxa are output to files
 #
 # The script takes one argument as input a file "base name"
@@ -19,23 +19,13 @@
 # created as part of the contig_based_taxonomic_assessment script
 #
 # There are also a number of other scripts and programs (spades.py, bowtie2, ...) that this script expects
-# to be in the user's PATH:
+# to be in the user's PATH or environment:
 #
 #  Programs:
 #
 #  gsnapl
-#
-#  blastn
 #  diamond
-#
-#  Scripts I've written:
-#
-#  fasta_from_gsnap
-#  reconcile_read2_file
-#  fastq_to_fasta
-#  tally_blast_hits 
-#  tally_blast_hits 
-#  distribute_fasta_by_blast_taxid 
+#  and other scripts in this repository
 #
 # Mark Stenglein
 #
@@ -59,23 +49,23 @@ log=${file_base}.pipeline.log
    date
 
    nt_index=/home/databases/nr_nt/nt/
-   gsnapl --use-shared-memory=1 -B 4 -t 12 --npaths=10  --gmap-mode=none --nofails --ordered -D $nt_index -d nt $f1 > ${f1}.gsnap
+   gsnapl -t 12 --npaths=10 --nofails -A m8 -D $nt_index -d nt $f1 > ${f1}.gsnap
 
    # get the gsnap vs nt "misses"
    f1_out=${f1}.gsnap
-   fasta_from_gsnap -r $f1_out > ${file_base}_R1_fuhsn.fastq
+   ./fasta_from_blast -r $f1_out > ${file_base}_R1_fuhsn.fastq
 
    echo "tallying gsnap vs. nt hits" 
    date 
-   tally_hits_gsnap.pl ${file_base}_R1_fuhs.fastq.gsnap  > ${file_base}_R1_fuhs.fastq.gsnap.tally  
-	tally_hits_gsnap.pl -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.desc_tally
-   tally_hits_gsnap.pl -t -ti -o tab_tree_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.tab_tree_tally 
+   ./tally_blast_hits -lca $f1_out  > ${f1_out}.tally
+	# tally_blast_hits -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.desc_tally
+   ./tally_blast_hits -lca -t -ti -o tab_tree_tally $f1_out > ${f1_out}.tab_tree_tally
 
    # pull out hits to taxa of interest
-   fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
+   ./fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
+   ./distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
 
    # diamond
 
@@ -87,27 +77,27 @@ log=${file_base}.pipeline.log
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
    echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
+   diamond blastx --db $dmd_index --threads 12 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
 
-   fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_R1_fuhsnn.fastq
+   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_R1_fuhsnn.fastq
 
    echo "done with diamond " 
    date 
 
    echo "tallying diamond vs. nr hits" 
-   tally_blast_hits ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.tally  
-   tally_blast_hits -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
-   tally_blast_hits -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr > ${file_base}_R1_fuhsn.fastq.dmd_nr.tab_tree_tally 
+   ./tally_blast_hits -lca ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.tally  
+   # tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
+   ./tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr > ${file_base}_R1_fuhsn.fastq.dmd_nr.tab_tree_tally 
 
    echo "done tallying" 
    date 
 
-   echo "pulling out virus-derived reads (RAPSearch)" 
+   echo "pulling out virus-derived reads (Diamond)" 
 
-   fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
+   ./fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
 
    # pull out virus-derived reads
-   distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.dmd_nr 
+   ./distribute_fasta_by_blast_taxidl -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.dmd_nr 
 
    echo "done with read-based taxonomic assessment"
    date
