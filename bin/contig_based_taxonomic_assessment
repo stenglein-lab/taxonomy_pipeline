@@ -43,6 +43,7 @@
 # Mark Stenglein
 #
 # 11/6/2015
+# last updated: 3/17/2020
 #
 
 id=$1
@@ -100,12 +101,15 @@ f2=${id}_R2_fuh.fastq
    # create files of non-aligning aka singleton reads
    # ************************************************
    
-   # create a composite sam file: this is all R1 or R2 reads that map to contigs
-   cat ${f1}.${bt_index}.sam ${f2}.${bt_index}.sam > ${id}_R12_fuh.fastq.${bt_index}.sam
+   ### # create a composite sam file: this is all R1 or R2 reads that map to contigs
+   #### cat ${f1}.${bt_index}.sam ${f2}.${bt_index}.sam > ${id}_R12_fuh.fastq.${bt_index}.sam
 
-   # pull out read pairs for which neither read in the pair maps to a contig (singletons)
-   ./fasta_from_sam -r -f $f1 ${id}_R12_fuh.fastq.${bt_index}.sam > ${id}_R1_fuhs.fastq
-   ./fasta_from_sam -r -f $f2 ${id}_R12_fuh.fastq.${bt_index}.sam > ${id}_R2_fuhs.fastq
+   # pull out reads that didn't map to contigs (singletons)
+   ./fasta_from_sam -r -f $f1 ${f1}.${bt_index}.sam > ${id}_R1_fuhs.fastq
+   ./fasta_from_sam -r -f $f2 ${f2}.${bt_index}.sam > ${id}_R2_fuhs.fastq
+
+	# create a merged singleton file
+	cat ${id}_R1_fuhs.fastq ${id}_R2_fuhs.fastq | ./fastq_to_fasta > ${id}_R12_fuhs.fa
 
    # this file tells you how many reads map to each contig
    weights_file=${id}_contig_weights.txt
@@ -114,7 +118,10 @@ f2=${id}_R2_fuh.fastq
    # blastn contigs vs. nt
    # *********************
 
-   f1=${id}_spade_contigs.fa
+	# create a merged file of contigs and singletons 
+
+	cat ${id}_spade_contigs.fa ${id}_R12_fuhs.fa > ${id}_contigs_singletons.fa
+   f1=${id}_contigs_singletons.fa
 
    echo "blastn contigs for $id ($f1) vs nt"
    date
@@ -130,7 +137,7 @@ f2=${id}_R2_fuh.fastq
    # get the blastn vs nt "misses"
    # these are contigs that haven't been assigned taxonomically by the blastn step
    f1_out=${f1}.bn_nt
-   ./fasta_from_blast -r $f1_out > ${id}_spade_contigs_n.fa
+   ./fasta_from_blast -r $f1_out > ${id}_contigs_singletons_n.fa
 
    # *******************************************
    # Taxonomic assessment of nt-based alignments
@@ -139,7 +146,6 @@ f2=${id}_R2_fuh.fastq
    echo "tallying blastn vs. nt hits" 
    date 
    ./tally_blast_hits -lca -w $weights_file ${f1}.bn_nt > ${f1}.bn_nt.tally
-   # ./tally_blast_hits -lca -w $weights_file -d -o desc_tally ${f1}.bn_nt > ${f1}.bn_nt.desc_tally
    ./tally_blast_hits -lca -w $weights_file -t -ti -o tab_tree_tally ${f1}.bn_nt > ${f1}.bn_nt.tab_tree_tally
 
    # ***************************************************************************
@@ -154,15 +160,15 @@ f2=${id}_R2_fuh.fastq
    echo "diamond remaining contigs for $id vs. nr" 
    date 
 
-   f1=${id}_spade_contigs_n.fa
+   f1=${id}_contigs_singletons_n.fa
 
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
-   echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-   diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3 
+   echo "diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
+   diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3 
 
    # contigs with no good hit by blastn vs. nt or diamond vs. nr
-   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${id}_spade_contigs_nn.fa
+   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${id}_contigs_singletons_nn.fa
 
    echo "done with diamond for $id" 
    date 
@@ -172,7 +178,6 @@ f2=${id}_R2_fuh.fastq
    # *******************************************
    echo "tallying diamond vs. nr hits" 
    ./tally_blast_hits -lca -w $weights_file ${f1}.dmd_nr > ${f1}.dmd_nr.tally
-   # ./tally_blast_hits -lca -w $weights_file -d -o desc_tally ${f1}.dmd_nr > ${f1}.dmd_nr.desc_tally
    ./tally_blast_hits -lca -w $weights_file -t -ti -o tab_tree_tally ${f1}.dmd_nr > ${f1}.dmd_nr.tab_tree_tally
 
    echo "done tallying" 
