@@ -3,7 +3,7 @@
 #
 # This script attempts to taxonomically assign reads (that don't map to contigs)
 #
-# It uses gsnapl to align reads to the nt database and pulls out reads that
+# It uses blastn to align reads to the nt database and pulls out reads that
 # produce good nt-level alignments
 #
 # It then uses diamond to align the remaining reads to the nr database. 
@@ -23,7 +23,7 @@
 #
 #  Programs:
 #
-#  gsnapl
+#  blastn
 #  diamond
 #  other scripts in this repository
 #
@@ -41,12 +41,12 @@ log=${file_base}.pipeline.log
    echo "performing read-based taxonomic assessment for $file_base"
    date
 
-   # first, run gsnap to get nt-based alignments to db seqs
+   # first, run blastn to get nt-based alignments to db seqs
 
    f1=${file_base}_R1_fuhs.fastq
    f2=${file_base}_R2_fuhs.fastq
 
-   echo "gsnap $file_base ($f1) vs. nt database" 
+   echo "blastn $file_base ($f1) vs. nt database" 
    date
 
    nt_index=/home/databases/nr_nt/nt_gsnap/

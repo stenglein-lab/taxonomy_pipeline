@@ -371,7 +371,7 @@ while ($fasta_file && $blast_file)
                      $taxid_to_kingdom_map{$this_query_taxid} = $kingdom;
       
                      # if only want virus hits, ignore non-virus hits
-                     if ($virus_only && ($kingdom ne "V"))
+                     if ($virus_only and ((!defined $kingdom) or ($kingdom ne "V")))
                      {
                         # warn "ignoring non virus taxid $taxid\n";
                         next BEST_HIT_ACC;

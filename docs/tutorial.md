@@ -32,7 +32,6 @@ This pipeline has been reported in a number of [publications](https://www.stengl
   - [Diamond (BLASTX) search of NCBI protein (nr) database.](#section9)
   - [Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.](#section10)
   - [Extraction of putative virus contigs.](#section11)
-  - [Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).](#section12)
 - Other topics
   - [Filtering a different host species](#section_different_host)
   - [Downloading a new host genome](#section_genome)
@@ -274,29 +273,27 @@ Let's run the command.
 # assemble non-host reads and taxonomically assign contigs
 ./contig_based_taxonomic_assessment_single_end dros_pool
 ```
-
-This is going to be one of the slowest parts of the pipeline and may take 20-30 min to complete (or longer).  
-
 The first thing you should see is the output from the [spades assembler](http://cab.spbu.ru/software/spades/). Assemblers like Spades stitch together overlapping short reads into longer contigs.  This process should take a couple minutes for the number of reads remaining in the `_fuh.fastq` file.   Spades has verbose output so you will see a lot of information cascade down your screen.
 
-After assembly is complete, you will see a new file in the directory named `dros_pool_spade_contigs.fa`. This is a fasta file containing the assembled contigs. 
-
-Once spade has completed, look for the `dros_pool_spade_contigs.fa` file, and have a look at it: `less dros_pool_spade_contigs.fa`.  How long are the longest contigs?  Can you tell how much coverage the different contigs have?
+Once spades has completed, look for the `dros_pool_contigs_singletons.fa` file, and have a look at it: `less dros_pool_contigs_singletons.fa`.  How long are the longest contigs?  Can you tell how much coverage the different contigs have?
 
 The pipeline then uses bowtie to map host filtered reads (those in the `fuh.fastq` file) to the contigs.  The goals of this are:
 
 1. To determine how many reads were collapsed into each contig.  When the pipeline taxonomically assigns the contigs, it weights them by the number of reads that contributed to each contig.
-2. To identify reads that didn't assemble into contigs (assembly requires a certain amount of coverage (overlap), so not all reads will assemble).  These "singleton" reads can also be taxonomically assigned.
+2. To identify reads that didn't assemble into contigs (assembly requires a certain amount of coverage (overlap), so not all reads will assemble).  These "singleton" reads can also be taxonomically assigned.  In fact, the pipeline concatenates the contigs with all the singtoln reads into a new merged file named `dros_pool_contigs_singletons.fa`.
 
 The output of this step is a file named `dros_pool_contig_weights.txt`.  Have a look at the first 20 lines by running `head -20 dros_pool_contig_weights.txt`.  How many reads mapped to the top 20 contigs? 
 
-### <a name="section6"></a> 6. BLASTN search of contigs against the NCBI nucleotide (nt) database.
 
-Once contigs have been created, it is time to try to taxonomically categorize them.  The pipeline first uses [BLASTN](https://en.wikipedia.org/wiki/BLAST_(biotechnology)) to identify existing sequences in the NCBI nucleotide (nt) database that exceen a certain similarity threshold for each contig.  The output file created by the pipeline will be named `dros_pool_spade_contigs.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
+### <a name="section6"></a> 6. BLASTN search of contigs and singletons against the NCBI nucleotide (nt) database.
+
+Once contigs have been created, it is time to try to taxonomically categorize them and the non-assembling singleton reads (below, I refer to contigs, but really both singletons and contigs are being analyzed).  The pipeline first uses [BLASTN](https://en.wikipedia.org/wiki/BLAST_(biotechnology)) to identify existing sequences in the NCBI nucleotide (nt) database that exceen a certain similarity threshold for each contig.  The output file created by the pipeline will be named `dros_pool_contigs_singletons.fa.bn_nt`.  Note that this file will exist with a size of 0 bytes before it is populated with results (BLASTN creates the file immediately before it begins writing results to the files). Use the `ls -l` command to look for this file and note its file size.
 
 Can you find the line in the [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end) script where blastn is run?  What is the minimum E-value threshhold used? 
 
-After blastn completes, look at the blast output file (`dros_pool_spade_contigs.fa.bn_nt`) by running the command `less dros_pool_spade_contigs.fa.bn_nt`.  Can you interpret the output?   (Hint: [this page](http://www.metagenomics.wiki/tools/blast/blastn-output-format-6) describes the column in the blast output). Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt database sequence?  What is the NCBI accession of that sequence?  What is that sequence? (You can check [here](https://www.ncbi.nlm.nih.gov/genbank/) by pasting in the accession).  
+After blastn completes, look at the blast output file (`dros_pool_contigs_singletons.fa.bn_nt`) by running the command `less dros_pool_contigs_singletons.fa.bn_nt`.  Can you interpret the output?   (Hint: [this page](http://www.metagenomics.wiki/tools/blast/blastn-output-format-6) describes the column in the blast output). 
+
+Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt database sequence?  What is the NCBI accession of that sequence?  What is that sequence? (You can check [here](https://www.ncbi.nlm.nih.gov/genbank/) by pasting in the accession).  
 
 ### <a name="section7"></a> 7. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
 
@@ -308,13 +305,13 @@ If a contig produces equally high scoring blast alignments to multiple database 
 
 The [tally_blast_hits](../bin/tally_blast_hits) script also tabulates the hits and outputs tables of the number of hits to each taxa, the average percent identity of these hits, etc.  i
 
-Have a look at the output of tally_blast_hits by running `less dros_pool_spade_contigs.fa.bn_nt.tally`.  The output is sorted by the number of reads assigned to each taxon.  (Remember that this number is weighted by the number of reads that mapped to each contig).  
+Have a look at the output of tally_blast_hits by running `less dros_pool_contigs_singletons.fa.bn_nt.tally`.  The output is sorted by the number of reads assigned to each taxon.  (Remember that this number is weighted by the number of reads that mapped to contigs).  
 
-What was the most abunundant non-host taxon?   How many reads mapped to it?  What was the median percent identity of the blast alignments for this taxon?    
+What was the most abunundant non-host taxon?   How many reads were assigned to it?  What was the median percent identity of the blast alignments for this taxon?    
 
 This tally file is tab-delimited, so you can open it in programs like Excel or R for further analysis.  
 
-The [tally_blast_hits](../bin/tally_blast_hits) script is also aware of the entire taxonomy heirarchy, so it can keep track of things like how many reads mapped to viruses, bacteria, etc.  The output file `dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally` has this information.  Look at this file by running `less dros_pool_spade_contigs.fa.bn_nt.tab_tree_tally`.  
+The [tally_blast_hits](../bin/tally_blast_hits) script is also aware of the entire taxonomy heirarchy, so it can keep track of things like how many reads mapped to viruses, bacteria, etc.  The output file `dros_pool_contigs_singletons.fa.bn_nt.tab_tree_tally` has this information.  Look at this file by running `less dros_pool_contigs_singletons.fa.bn_nt.tab_tree_tally`.  
 
 How many reads mapped to viruses?  How many to bacteria?  Note that the lines of this file are indented at the beginning to reflect the taxonomy heirarchy, meaning it's *not* suitable for being opened in Excel or R (these initial indents can be removed - see below).  
 
@@ -326,26 +323,26 @@ The [tally_blast_hits](../bin/tally_blast_hits) script is highly configurable.  
 
 
 # tally hits at the genus level
-./tally_blast_hits -lca -r genus -w dros_pool_contig_weights.txt dros_pool_spade_contigs.fa.bn_nt
+./tally_blast_hits -lca -r genus -w dros_pool_contig_weights.txt dros_pool_contigs_singletons.fa.bn_nt
 
 
 # tally only for viruses (NCBI taxid 10239, see: https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=10239&lvl=3&lin=f&keep=1&srchmode=1&unlock)
-./tally_blast_hits -lca -it 10239 dros_pool_spade_contigs.fa.bn_nt
+./tally_blast_hits -lca -it 10239 dros_pool_contigs_singletons.fa.bn_nt
 
 
 # same as .tab_tree_tally file, but with no indents at beginning of lines
-./tally_blast_hits -lca -w dros_pool_contig_weights.txt -t dros_pool_spade_contigs.fa.bn_nt > dros_pool_spade_contigs.fa.bn_nt.tree_tally
+./tally_blast_hits -lca -w dros_pool_contig_weights.txt -t dros_pool_contigs_singletons.fa.bn_nt > dros_pool_contigs_singletons.fa.bn_nt.tree_tally
 ```
 
 Play around with this script to produce different types of output.  If you want to capture the output in a new file, you can use the bash [output redirection operator](https://thoughtbot.com/blog/input-output-redirection-in-the-shell) `>` as in the last example above.  
 
 ### <a name="section8"></a> 8. Extraction of putative virus contigs
 
-The pipeline by default also outputs putative virus-mapping contigs into separate fasta files.  
+The pipeline by default also outputs putative virus-mapping contigs and singleton reads into separate fasta files.  
 
 The command responsible for doing this is named [distribute_fasta_by_blast_taxid](../bin/distribute_fasta_by_blast_taxid).  The pipeline uses this script to create one fasta file for each virus taxon identified.  
 
-Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`. Output the contents of this file by running `cat dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa`.  
+Look in your directory to identify these files.  For instance, you should see a file named `dros_pool_contigs_singletons.fa_1654579_Galbut_virus.fa`. Output the contents of this file by running `cat dros_pool_contigs_singletons.fa_1654579_Galbut_virus.fa`.  
 
 How many galbut virus-mapping contigs were there?  How high are the coverage levels of these? 
 
@@ -356,7 +353,7 @@ Like [tally_blast_hits](../bin/tally_blast_hits), the [distribute_fasta_by_blast
 ./distribute_fasta_by_blast_taxid
 
 # output all bacteria-mapping (bacteria = taxid 2) reads into a single file:
-./distribute_fasta_by_blast_taxid -t 2 dros_pool_spade_contigs.fa.bn_nt
+./distribute_fasta_by_blast_taxid -t 2 dros_pool_contigs_singletons.fa.bn_nt
 ```
 
 Exercise: you should see in your .tally file that the pipeline identified Wolbachia-mapping contigs in this example dataset.  Can you create a file containing all the Wolbachia-mapping contigs? 
@@ -365,35 +362,21 @@ Exercise: you should see in your .tally file that the pipeline identified Wolbac
 ### <a name="section10"></a> 10. Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.
 ### <a name="section11"></a> 11. Extraction of putative virus contigs
 
-The next three steps are also run as part of [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment).  
+The next three steps are also run as part of [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end).  
 
-After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs using protein-level similarity.  The pipeline uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (Q: why is this so?).  
+After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs and singletons using protein-level similarity.  The pipeline uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs and unassembled reads, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (Q: why is this so?).  
 
-The contigs that didn't produce a nucleotide-level similarity alignment are in the `dros_pool_spade_contigs_n.fa`  The `_n` in this file name indicates that these are contigs remaining after (n)t level classification.  
+The contigs and singletons that didn't produce a nucleotide-level similarity alignment are in the `dros_pool_contigs_singletons_n.fa`  
 
-The [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script runs diamond using this file as input.  Can you identify the line in that script where diamond is run?  
+The [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end) script runs diamond using this file as input.  Can you identify the line in that script where diamond is run?  
 
-After running diamond the pipeline performs taxonomic assignment, result tabulation, and outputting of virus-mapping contigs as above.  
+After running diamond the pipeline performs taxonomic assignment, result tabulation, and outputting of virus-mapping contigs and reads as above.  
 
-Have a look at the tally file for the diamond assignments: `less dros_pool_spade_contigs_n.fa.dmd_nr.tally`.  What taxa were identified this way?  How many reads did they account for?  What was the median % identity of the alignments?  
+Have a look at the tally file for the diamond assignments: `less dros_pool_contigs_singletons_n.fa.dmd_nr.tally`.  What taxa were identified this way?  How many reads did they account for?  What was the median % identity of the alignments?  
 
-The pipeline also outputs putative viral contigs.  For example, you should see a file named `dros_pool_spade_contigs_n.fa_33724_Nilaparvata_lugens_reovirus.fa`.   This file contains putative reovirus contigs that were identified by protein-level similarity to a reovirus from a brown planthopper insect (`Nilaparvata lugens`).  Note that since these were identified by protein level alignments, this means that these new sequences represent a 'new' virus: one for which closely related database sequences don't exist.  Cool, huh?
+The pipeline also outputs putative viral contigs and singletons.  For example, you should see a file named `dros_pool_contigs_singletons_n.fa_33724_Nilaparvata_lugens_reovirus.fa`.   This file contains putative reovirus contigs that were identified by protein-level similarity to a reovirus from a brown planthopper insect (`Nilaparvata lugens`).  Note that since these were identified by protein level alignments, this means that these new sequences represent a 'new' virus: one for which closely related database sequences don't exist.  Cool, huh?
 
-Note that some contigs are not assigned either by nucleotide or protein level similarity.  These contigs are in a file named `dros_pool_spade_contigs_nn.fa`.  Have a look at these contigs.  
-
-### <a name="section12"></a> 12. Repeat of steps 7-12 for any reads that didn't assemble into contigs (singletons).
-
-The last step of the pipeline is to assign "singleton" reads that didn't assemble into contigs using a similar approach as that outlined above for contigs.  First, reads are assigned by nt-nt alignments using the [gsnap aligner](http://research-pub.gene.com/gmap/). Then, remaining reads are assigned using the diamond aligner at a protein level.  
-
-The singleton analyse  are run by the command
-```
-# taxonomically assign reads that didn't assemble (singletons)
-./read_based_taxonomic_assessment_single_end dros_pool
-```
-
-The singleton reads are found in the file `dros_pool_R1_fuhs.fastq` 
-
-The output files from this read based taxonomic assessment are similar to those outlined above for contigs.
+Note that some contigs or reads are not assigned either by nucleotide or protein level similarity.  These contigs are in a file named `dros_pool_contigs_singletons_nn.fa`.  Have a look at this file.  There may be interesting sequences in there that just weren't assigned but could be recognizable by other methods.
 
 
 ## Other considerations
@@ -538,7 +521,7 @@ If the pipeline indicates that a contig was assigned to a particular organism, o
 Say you've pulled out a putative virus-derived contig. One of the first steps we will do to validate it is to re-map reads from the dataset back to the contig.  For example, say you wanted to validate the assembly of the galbut virus-derived contigs from the examples above.  You could run:
 ```
 # make a new bowtie2 index from the putative galbut virus contigs
-bowtie2-build dros_pool_spade_contigs.fa_1654579_Galbut_virus.fa galbut_index
+bowtie2-build dros_pool_contigs_singletons.fa_1654579_Galbut_virus.fa galbut_index
 
 # use bowtie2 to map reads back:
 bowtie2 -x galbut_index -q -U dros_pool_R1_fuh.fastq --local --score-min C,120,1 --no-unal --threads 12 -S dros_pool_R1_fuh.fastq.bt_galbut.sam

@@ -562,7 +562,7 @@ foreach my $aln_file (@aln_files)
             my $taxid = $gi_taxid_map{$gi};
             if (!$taxid)
             {
-               warn "warning: TAXID undefined for accession: $gi\n";
+               # warn "warning: TAXID undefined for accession: $gi\n";
             }
 
             # "normalized" tally
