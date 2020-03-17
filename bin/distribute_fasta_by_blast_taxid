@@ -324,7 +324,7 @@ while ($fasta_file && $blast_file)
                      # if so, aggregate to that 
                      while ($parent_taxid = $node_parent{$parent_taxid})
                      {
-                        warn "PARENT: $parent_taxid\n";
+                        # warn "PARENT: $parent_taxid\n";
                         if ($higher_level_taxids{$parent_taxid})
                         {
                            # this is a descendent 
@@ -367,7 +367,7 @@ while ($fasta_file && $blast_file)
                      # determine kingdom (according to NCBI taxonomy db)
                      my @kingdoms = taxid_to_kingdom::taxid_to_kingdom($this_query_taxid);
                      my $kingdom = $kingdoms[0];
-							warn "TAXID: $this_query_taxid\tKINGDOM: $kingdom\n";
+							# warn "TAXID: $this_query_taxid\tKINGDOM: $kingdom\n";
                      $taxid_to_kingdom_map{$this_query_taxid} = $kingdom;
       
                      # if only want virus hits, ignore non-virus hits
