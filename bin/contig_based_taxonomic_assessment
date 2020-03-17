@@ -128,7 +128,6 @@ f2=${id}_R2_fuh.fastq
 
    # TODO: avoid harcoding this path?
    db="/home/databases/nr_nt/nt"
-   echo "blastn -query $f1 -db $db -num_threads 24 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt"
    blastn -query $f1 -db $db -num_threads 12 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt
 
    echo "done with blastn for $id"
@@ -164,8 +163,7 @@ f2=${id}_R2_fuh.fastq
 
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
-   echo "diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-   diamond blastx --db $dmd_index --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3 
+   diamond blastx --db $dmd_index --threads 16 --index-chunks 1 --block-size 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3 
 
    # contigs with no good hit by blastn vs. nt or diamond vs. nr
    ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${id}_contigs_singletons_nn.fa
