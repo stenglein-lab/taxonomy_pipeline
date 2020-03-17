@@ -41,19 +41,21 @@ log=${file_base}.pipeline.log
    echo "performing read-based taxonomic assessment for $file_base"
    date
 
-   # first, run gsnap to get nt-based alignments to db seqs
+   # first, run blastn to get nt-based alignments to db seqs
 
-   f1=${file_base}_R1_fuhs.fastq
+   # blast requires fasta input
+   ./fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
 
-   echo "gsnap $file_base ($f1) vs. nt database" 
+   f1=${file_base}_R1_fuhs.fa
+
+   echo "blastn $file_base ($f1) vs. nt database" 
    date
 
-   nt_index=/home/databases/nr_nt/nt/
-   gsnapl -t 12 --npaths=10 --nofails -A m8 -D $nt_index -d nt $f1 > ${f1}.gsnap
+	blastn -query $f1 -db $db -num_threads 12 -evalue 1e-8 -task megablast -outfmt 6 | ./consolidate_blast_output > ${f1}.bn_nt
 
-   # get the gsnap vs nt "misses"
-   f1_out=${f1}.gsnap
-   ./fasta_from_blast -r $f1_out > ${file_base}_R1_fuhsn.fastq
+   # get the blastn vs nt "misses"
+   f1_out=${f1}.bn_nt
+   ./fasta_from_blast -r $f1_out > ${file_base}_R1_fuhsn.fa
 
    echo "tallying gsnap vs. nt hits" 
    date 
@@ -61,15 +63,14 @@ log=${file_base}.pipeline.log
 	# tally_blast_hits -d -o desc_tally ${file_base}_R1_fuhs.fastq.gsnap ${file_base}_R1_fuhs.fastq.gsnap.desc_tally
    ./tally_blast_hits -lca -t -ti -o tab_tree_tally $f1_out > ${f1_out}.tab_tree_tally
 
-   # pull out hits to taxa of interest
-   ./fastq_to_fasta  ${file_base}_R1_fuhs.fastq >  ${file_base}_R1_fuhs.fa
 
    # pull out virus-derived reads
-   ./distribute_fasta_by_blast_taxid -v ${file_base}_R1_fuhs.fa ${file_base}_R1_fuhs.fastq.gsnap 
+   ./distribute_fasta_by_blast_taxid -v $f1 $f1_out
 
    # diamond
 
-   f1=${file_base}_R1_fuhsn.fastq
+   f1=${file_base}_R1_fuhsn.fa
+	f1_out=${f1}.dmd_nr
 
    echo "diamond remaining hits for $file_base ($f1) vs. nr" 
    date
@@ -77,30 +78,27 @@ log=${file_base}.pipeline.log
    dmd_index=/home/databases/nr_nt/nr.dmnd
 
    echo "diamond blastx --db /home/databases/nr_nt/nr.dmnd --threads 16 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3"
-   diamond blastx --db $dmd_index --threads 12 --out ${f1}.dmd_nr --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
+   diamond blastx --db $dmd_index --threads 12 --out $f1_out --outfmt 6 --query ${f1} --unal 0 --evalue 1e-3
 
-   ./fasta_from_blast -r -f ${f1} ${f1}.dmd_nr > ${file_base}_R1_fuhsnn.fastq
+   ./fasta_from_blast -r -f $f1 $f1_out > ${file_base}_R1_fuhsnn.fa
 
    echo "done with diamond " 
    date 
 
    echo "tallying diamond vs. nr hits" 
-   ./tally_blast_hits -lca ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.tally  
+   ./tally_blast_hits -lca $f1_out  > ${f1_out}.tally  
    # tally_hits_universal.pl -d -o desc_tally ${file_base}_R1_fuhsn.fastq.dmd_nr  > ${file_base}_R1_fuhsn.fastq.dmd_nr.desc_tally  
-   ./tally_blast_hits -lca -t -ti -o tab_tree_tally ${file_base}_R1_fuhsn.fastq.dmd_nr > ${file_base}_R1_fuhsn.fastq.dmd_nr.tab_tree_tally 
+   ./tally_blast_hits -lca -t -ti -o tab_tree_tally $f1_out > $f1_out.tab_tree_tally 
 
    echo "done tallying" 
    date 
 
    echo "pulling out virus-derived reads (Diamond)" 
 
-   ./fastq_to_fasta ${file_base}_R1_fuhsn.fastq > ${file_base}_R1_fuhsn.fa
-
    # pull out virus-derived reads
-   ./distribute_fasta_by_blast_taxidl -v ${file_base}_R1_fuhsn.fa ${file_base}_R1_fuhsn.fastq.dmd_nr 
+   ./distribute_fasta_by_blast_taxid -v $f1 $f1_out
 
    echo "done with read-based taxonomic assessment"
    date
-
 
 } | tee -a $log

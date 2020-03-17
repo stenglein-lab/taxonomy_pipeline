@@ -49,8 +49,8 @@ log=${file_base}.pipeline.log
    echo "gsnap $file_base ($f1) vs. nt database" 
    date
 
-   nt_index=/home/databases/nr_nt/nt/
-   gsnapl -t 12 --npaths=10 --nofails -A m8 -D $nt_index -d nt $f1 > ${f1}.gsnap
+   nt_index=/home/databases/nr_nt/nt_gsnap/
+   gsnapl -t 12 --npaths=10 --nofails -A m8 -D $nt_index -d nt_gsnap $f1 > ${f1}.gsnap
 
    # get the gsnap vs nt "misses"
    f1_out=${f1}.gsnap
@@ -61,7 +61,7 @@ log=${file_base}.pipeline.log
 
    f2=${file_base}_R2_fuhsn1.fastq 
 
-   gsnapl -t 12 --npaths=10 -A m8 --nofails -D $nt_index -d nt $f2 > ${f2}.gsnap
+   gsnapl -t 12 --npaths=10 -A m8 --nofails -D $nt_index -d nt_gsnap $f2 > ${f2}.gsnap
    ./fasta_from_blast -r ${f2}.gsnap > ${file_base}_R2_fuhsn.fastq
 
    echo "filter out remaining R1 reads where R2 had a good gsnap hit vs. nt" 
