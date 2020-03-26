@@ -165,7 +165,7 @@ Running the following commands will recapitulate how the pipeline runs fastqc:
 fastqc dros_pool_R1.fastq
 ```
 
-In the pipeline, this command is run from the main [run_pipeline](../bin/run_pipeline) bash script.  See if you can find where it's run in that script by looking at [the file](../bin/run_pipeline) on github. 
+In the pipeline, this command is run from the main [run_pipeline_single_end](../bin/run_pipeline_single_end) bash script.  See if you can find where it's run in that script by looking at [the file](../bin/run_pipeline_single_end) on github. 
 
 After fastqc completes, you should see a new html file if you run the `ls` command.
 
@@ -297,7 +297,7 @@ Did the first contig (named `NODE_1_...`) map at a nucleotide level to a nt data
 
 ### <a name="section7"></a> 7. Taxonomic assignment of contigs based on nucleotide-level BLASTN alignments and tabulation of results.
 
-You could go through the contigs one at a time, but that's not very practical.  The next step of the pipeline taxonomically categorizes the blast "hits" and tabulates the results in a couple different formats.  The script that does this is called [tally_blast_hits](../bin/tally_blast_hits).  Can you find where this is called in the [contig_based_taxonomic_assessment](../bin/contig_based_taxonomic_assessment) script? Note that it is called multiple times in slightly different ways.
+You could go through the contigs one at a time, but that's not very practical.  The next step of the pipeline taxonomically categorizes the blast "hits" and tabulates the results in a couple different formats.  The script that does this is called [tally_blast_hits](../bin/tally_blast_hits).  Can you find where this is called in the [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end) script? Note that it is called multiple times in slightly different ways.
 
 The [tally_blast_hits](../bin/tally_blast_hits) script does a couple things.  First it goes through the blast results and maps the database sequences to their taxa.  Note that this depends on annotation in the NCBI database. For instance, visit [this database sequence](https://www.ncbi.nlm.nih.gov/nuccore/827047338).  What species is this sequence assigned to?  Can you see where the entire taxonomic lineage of this species is noted?  Note also that sometimes this annotation is incorrect.  
 
@@ -326,8 +326,9 @@ The [tally_blast_hits](../bin/tally_blast_hits) script is highly configurable.  
 ./tally_blast_hits -lca -r genus -w dros_pool_contig_weights.txt dros_pool_contigs_singletons.fa.bn_nt
 
 
-# tally only for viruses (NCBI taxid 10239, see: https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=10239&lvl=3&lin=f&keep=1&srchmode=1&unlock)
-./tally_blast_hits -lca -it 10239 dros_pool_contigs_singletons.fa.bn_nt
+# tally only for viruses (NCBI taxid 10239) 
+# see: https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?mode=Info&id=10239&lvl=3&lin=f&keep=1&srchmode=1&unlock
+./tally_blast_hits -lca -it 10239 -w dros_pool_contig_weights.txt dros_pool_contigs_singletons.fa.bn_nt
 
 
 # same as .tab_tree_tally file, but with no indents at beginning of lines
@@ -356,7 +357,7 @@ Like [tally_blast_hits](../bin/tally_blast_hits), the [distribute_fasta_by_blast
 ./distribute_fasta_by_blast_taxid -t 2 dros_pool_contigs_singletons.fa.bn_nt
 ```
 
-Exercise: you should see in your .tally file that the pipeline identified Wolbachia-mapping contigs in this example dataset.  Can you create a file containing all the Wolbachia-mapping contigs? 
+**Exercise:** you should see in your .tally file that the pipeline identified Wolbachia-mapping contigs in this example dataset.  Can you create a file containing all the Wolbachia-mapping contigs? 
 
 ### <a name="section9"></a> 9. Diamond (BLASTX) search of NCBI protein (nr) database.
 ### <a name="section10"></a> 10. Taxonomic assignment of contigs based on protein-level diamond alignments and tabulation of results.
@@ -364,7 +365,7 @@ Exercise: you should see in your .tally file that the pipeline identified Wolbac
 
 The next three steps are also run as part of [contig_based_taxonomic_assessment_single_end](../bin/contig_based_taxonomic_assessment_single_end).  
 
-After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs and singletons using protein-level similarity.  The pipeline uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs and unassembled reads, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (Q: why is this so?).  
+After taxonomically categorizing contigs by nucleotide-level similarity, the pipeline attempts to classify the remaining non-assigned contigs and singletons using protein-level similarity.  The pipeline uses the [diamond aligner](http://www.diamondsearch.org/index.php) to do this. Diamond is essentially equivalent to BLASTX, but runs faster.  Diamond identifies open reading frames in the contigs and unassembled reads, translates these in silico, then compares the resulting protein sequences to databases of protein sequences.  Comparisons at a protein level have the ability to identify more distant homologies (**Q:** why is this so?).  
 
 The contigs and singletons that didn't produce a nucleotide-level similarity alignment are in the `dros_pool_contigs_singletons_n.fa`  
 
@@ -490,7 +491,7 @@ Note also that the bowtie2-build step may take a while to run.  [See below](#sec
 
 It is useful to be able to run the pipeline on a number of datasets.  There are a number of ways to do this.  For instance, you could use the gnu [parallel command](https://www.gnu.org/software/parallel/).  We are working on implementing a [nextflow](https://www.nextflow.io/) version of the pipeline, which would also accomplish this. 
 
-In the meantime, in the Stenglein lab, we often take advantage of utility called `[simple_scheduler](https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/simple_scheduler)` that accomplishes this.  
+In the meantime, in the Stenglein lab, we often take advantage of utility called [simple_scheduler](https://github.com/stenglein-lab/stenglein_lab_scripts/blob/master/simple_scheduler) that accomplishes this.  
 
 To run the pipeline in parallel, you could use simple scheduler as follows:
 ```
@@ -531,7 +532,7 @@ In this example, the sam file created by bowtie2 describes alignment of reads to
 
 ### <a name="section_matrix"></a>Merging the results from multiple datasets
 
-The pipeline contains a script named `[make_taxa_matrix](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/bin/make_taxa_matrix)` that can be used to combine the results from multiple datasets.  This script takes as input the .tally files described above and will output a matrix (table), where rows are datasets and columns are taxa.  For example:
+The pipeline contains a script named [make_taxa_matrix](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/bin/make_taxa_matrix) that can be used to combine the results from multiple datasets.  This script takes as input the .tally files described above and will output a matrix (table), where rows are datasets and columns are taxa.  For example:
 ```
 # run the script by itself for usage information
 make_taxa_matrix
