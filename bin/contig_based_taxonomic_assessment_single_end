@@ -103,7 +103,7 @@ f1=${id}_R1_fuh.fastq
    # *************************************
 
 	# make a merged file containing singletons and contigs
-	cat ${id}_spade_contigs.fa ${id}_fuhs.fa > ${id}_contigs_singletons.fa
+   cat ${id}_spade_contigs.fa ${id}_R1_fuhs.fa > ${id}_contigs_singletons.fa
 
    f1=${id}_contigs_singletons.fa
 
