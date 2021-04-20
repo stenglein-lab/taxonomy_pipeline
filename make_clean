@@ -1,0 +1,3 @@
+#!/bin/bash
+
+rm -rf work results report.html* flowchart.pdf*

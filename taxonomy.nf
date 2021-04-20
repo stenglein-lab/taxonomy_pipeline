@@ -12,11 +12,21 @@
 
 // TODO: command line options and parameter checking
 
+// output usage message
+params.help = false
+params.h = false
 
-params.fastq_dir = "$baseDir/fastq/"
+params.input_dir = "$baseDir/input/"
+params.fastq_dir = "${params.input_dir}/fastq/"
 params.outdir = "$baseDir/results"                                                       
+
 params.initial_fastqc_dir = "${params.outdir}/initial_fastqc/" 
 params.post_trim_fastqc_dir = "${params.outdir}/post_trim_fastqc/" 
+params.host_filtered_out_dir = "${params.outdir}/host_filtered_fastq/"                        
+params.contigs_out_dir = "${params.outdir}/contigs/"                        
+params.blast_out_dir = "${params.outdir}/blast_output/"                        
+params.tally_out_dir = "${params.outdir}/tallies/"                        
+params.virus_seq_out_dir = "${params.outdir}/virus_sequences/"                        
 params.counts_out_dir = "${params.outdir}/fastq_counts/"                        
 params.fastq_out_dir = "${params.outdir}/trimmed_fastq/"                        
 params.bam_out_dir = "${params.outdir}/bam/"                                    
@@ -31,11 +41,26 @@ params.post_trim_min_length = "60"
 // --------------------
 // Host cell filtering
 // --------------------
-// Vero cell: African green monkey genome for host filtering
-params.host_bt_index = "/home/databases/fly/combined_fly_index"
-params.host_bt_suffix = "fly_genome"
-params.host_bt_min_score = "80"
+// Define one of the 2 following parameters:
+// 
+// 1. A 2-column tab-delimited file with:
+//    - the first column defining dataset IDs or patterns that will
+//      match dataset IDs
+//    - the second column will be the path of a bowtie index that will be
+//      used to filter out host reads
+//  
+//    This enables different filtering for different datasets
 
+params.host_bt_index_map_file = "${params.input_dir}/host_index_map.txt"
+
+// 2. The path to a bowtie index that will be used to filter host reads
+//    for all datasets
+// 
+// params.host_bt_index = "/home/databases/fly/combined_fly_index"
+params.host_bt_index = ""
+
+// min bowtie alignment score to be considered a host-derived read
+params.host_bt_min_score = "80"
 
 // where are R scripts found...
 params.R_bindir="${baseDir}/scripts"
@@ -44,6 +69,14 @@ params.scripts_bindir="${baseDir}/scripts"
 // cd-hit-dup cutoff for collapsing reads with >= this much fractional similarity
 params.mismatches_allowed = "2"
 
+
+// Blast e-value cutoffs                                                        
+params.max_blast_nt_evalue = "1e-10"  
+
+params.blast_db_dir = "/home/databases/nr_nt/"
+params.nt_blast_db = "${params.blast_db_dir}/nt"
+params.nr_blast_db = "${params.blast_db_dir}/nr"
+params.nr_diamond_db = "${params.blast_db_dir}/nr.dmd"
 
 // TODO: command line arg processing and validating 
 
@@ -55,8 +88,159 @@ params.mismatches_allowed = "2"
  These fastq files represent the main input to this workflow
 */
 Channel
-    .fromFilePairs("${params.fastq_dir}/*_R{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
-    .into {samples_ch_qc; samples_ch_trim; samples_ch_count}
+  .fromFilePairs("${params.fastq_dir}/*_R{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
+  .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
+
+
+// define usage output message
+// TODO:
+def helpMessage() {
+  log.info """
+        Usage:
+        The typical command for running the pipeline is as follows:
+        nextflow run main.nf --query QUERY.fasta --dbDir "blastDatabaseDirectory" --dbName "blastPrefixName"
+
+        Mandatory arguments:
+        One of: 
+        -- host_bt_index_map_file      The path to a file that contains host filtering
+                                       info for all datasets or subsets of datasets.   
+
+                                       This enables different filtering for different datasets
+          
+                                       This file should be a 2-column tab-delimited file 
+                                       with:
+
+                                       - the first column defining dataset IDs or patterns that will
+                                         match dataset IDs
+
+                                       - the second column will be the path of a bowtie index that will be
+                                         used to filter out host reads
+                                       
+
+        -- host bt_index               The path to a bowtie index that will be used 
+                                       to filter host reads for all datasets
+
+        Optional arguments:
+        --outdir                       Output directory into which to place final results files 
+
+        --help                         This usage statement.
+        --h                            This usage statement.
+        """
+}
+
+if (params.help || params.h) {
+    helpMessage()
+    exit 0
+}
+
+
+/* 
+  Check input parameters 
+*/
+def check_params () {
+
+  // must specify one and only one of these 2 host mapping 
+  if (!params.host_bt_index_map_file && !params.host_bt_index){
+    log.info """
+      Error: you may specify one of these two parameters:
+        1. host_bt_index_map_file ($params.host_bt_index_map_file) and 
+        2. host_bt_index ($params.host_bt_index) 
+    """
+    helpMessage()
+  }
+
+  if (params.host_bt_index_map_file && params.host_bt_index){
+    log.info """
+      Error: you may specify only one of these two parameters:
+        1. host_bt_index_map_file ($params.host_bt_index_map_file) and 
+        2. host_bt_index ($params.host_bt_index) 
+    """
+    helpMessage()
+  }
+
+  if (params.host_bt_index_map_file) {
+    host_map_file = file(params.host_bt_index_map_file)
+    if (!host_map_file.exists()) {  
+      log.info  """
+        Error: host_bt_index_map_file ($params.host_bt_index_map_file) does not exist 
+      """
+      helpMessage() 
+    }
+  }
+}
+
+host_map = [:]
+
+/* 
+  This function defines bowtie indexes to be used to do host filtering
+
+  This can be one index for all datasets or different indexes for 
+  different datasets.
+*/
+def setup_host_indexes () {
+   
+  // Store the bowtie index to be used for each dataset ID or dataset ID pattern
+  if (params.host_bt_index_map_file) {
+
+    host_map_file = file(params.host_bt_index_map_file)
+
+    // read through the file
+    allLines  = host_map_file.readLines()
+    for( line : allLines ) {
+        // split by tabs
+        fields = line.tokenize()
+        host_map.put(fields[0], fields[1])
+    }
+  }
+  else {
+    // because of the way pattern matching works below
+    // this empty string will match all sample IDS
+    // and host will be set to params.host_bt_index
+    host_map.put("" , params.host_bt_index)
+  }
+}
+
+/*
+  Get the bowtie index for host filtering for one dataset
+*/
+def get_dataset_host_index (sample_id) {
+
+  def index = ""
+
+  // first, check for a direct match
+  if (host_map.containsKey(sample_id)) {
+       index = host_map.get(sample_id)
+  }
+
+  // if that doesn't work, check for a pattern match
+  // using groovy's find operator to do pattern matching
+  // see: https://groovy-lang.org/operators.html#_find_operator
+  if (!index) {
+    host_map.each {
+      key, value -> 
+      // Pattern matching 
+      // TODO: if pattern ($key) is empty, this will evaluate to true
+      //       is this the expected behavior?
+      if (sample_id =~ /$key/) {
+         index = value
+      }
+    }
+  }
+
+  // no index found: no host filtering will be performed 
+  if (!index) {
+    log.info "Info: no host-filtering index found for $sample_id.  No host filtering will be performed\n"
+    index = "dummy"
+  }
+
+  return (index)
+}
+
+// check parameters
+check_params()
+
+// setup indexes for host filtering
+setup_host_indexes()
 
 
 /*
@@ -174,7 +358,6 @@ process trim_adapters_and_low_quality {
 
 }
 
-
 /*
  Count post-trimming fastq
 */
@@ -209,7 +392,7 @@ process collapse_duplicate_reads {
   output:
   tuple val(sample_id), path("*_fu.fastq") optional true into post_collapse_count_ch
   tuple val(sample_id), path("*_fu.fastq") optional true into post_collapse_qc_ch
-  tuple val(sample_id), path("*_fu.fastq") optional true into post_collapse_ch
+  tuple val(sample_id), path("*_fu.fastq") optional true into host_filtering_ch
 
   script:
 
@@ -271,7 +454,7 @@ process post_collapse_qc {
 }
 
 /*
- Use multiqc to merge post-trimming fastq reports
+ Use multiqc to merge post-trimming reports
 */
 process post_preprocess_multiqc {
   publishDir "${params.outdir}", mode:'link'
@@ -291,26 +474,20 @@ process post_preprocess_multiqc {
 /*
   Use bowtie2 to remove host-derived reads
 */
-// TODO: make host filtering optional
-// TODO: switch to bwa for host filtering too?  The reason to use bowtie2 in
-//       instead of bwa is that it has convenient built-in options for 
-//       outputting unmapped reads (the --un or --un-conc) options, whereas
-//       for bwa you have to go through additional steps with samtools / bedtools 
 process host_filtering {
   label 'lowmem_threaded'                                                                
+  publishDir "${params.host_filtered_out_dir}", mode:'link'
 
   input:
-  tuple val(sample_id), path(input_fastq) from post_collapse_ch
-  val("indexes_complete") from post_index_setup_ch
+  tuple val(sample_id), path(input_fastq) from host_filtering_ch
 
   output:
-  // tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_ch_dvg
-  tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_ch_count
-
-
-  // TODO: multiqc analysis of bowtie output (host filtering) (?)
+  tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_count_ch
+  tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_ch
 
   script:
+
+  def bt_index = get_dataset_host_index(sample_id)
 
   // handle single-end or paired-end inputs
   def r1 = input_fastq[0] 
@@ -318,17 +495,34 @@ process host_filtering {
   def bowtie_file_input  = input_fastq[1] ? "-1 $r1 -2 $r2" : "-U $r1"
   def bowtie_file_output = input_fastq[1] ? "--un-conc ${sample_id}_R%_fuh.fastq" : "--un ${sample_id}_R1_fuh.fastq"
 
-  """
-  bowtie2 \
-  -x "${params.host_bt_index}" \
-  --local \
-  -q \
-  $bowtie_file_input \
-  --sensitive \
-  --score-min "C,${params.host_bt_min_score},0" \
-  -p ${task.cpus} \
-  $bowtie_file_output 2> "${sample_id}.host_filtering_bt.log" > /dev/null 
-  """
+  if (bt_index == "dummy") {
+    // this is the case where we don't have a host index specified 
+    // for this sample.  Don't do host filtering.  Instead, just
+    // use the ln (link) command to effectively copy the input fastq file
+    // to the output file
+
+    // handle paired end data case
+    def r2_dummy_cmd = input_fastq[1]? "ln $r2 ${sample_id}_R2_fuh.fastq" : ""
+
+    """
+    ln $r1 ${sample_id}_R1_fuh.fastq
+    $r2_dummy_cmd
+    """
+  }
+  else {
+    // case where there is a bowtie index specified for host filtering
+    """
+    bowtie2 \
+    -x "${bt_index}" \
+    --local \
+    -q \
+    $bowtie_file_input \
+    --sensitive \
+    --score-min "C,${params.host_bt_min_score},0" \
+    -p ${task.cpus} \
+    $bowtie_file_output 2> "${sample_id}.host_filtering_bt.log" > /dev/null 
+    """
+  }
 }
 
 
@@ -340,7 +534,7 @@ process host_filtered_fastq_count {
   publishDir "${params.counts_out_dir}", mode:'link'
 
   input:
-  tuple val(sample_id), path(filtered_fastq) from post_host_ch_count
+  tuple val(sample_id), path(filtered_fastq) from post_host_filter_count_ch
 
   output:
   path("${sample_id}_host_filtered_count.txt") into post_count_host_ch
@@ -353,6 +547,9 @@ process host_filtered_fastq_count {
   '''
 }
 
+/* 
+  Collect all the fastq counts from various steps of processing and create a plot / excel summary
+*/
 process tabulate_fastq_counts {
   publishDir "${params.outdir}", mode: 'link'
 
@@ -368,3 +565,160 @@ process tabulate_fastq_counts {
   Rscript ${params.R_bindir}/process_fastq_counts.R ${params.R_bindir} ${all_count_files}
   """
 }
+
+/*
+  Assemble reads remaining after host filtering
+*/
+process assemble_remaining_reads {
+  publishDir "${params.contigs_out_dir}", mode:'link'
+  label 'highmem'
+
+  // Spades will fail if, for instance, there are very few reads in the post-host-filtered datasets
+  // this is expected for some kinds of datasets, such as water negative control datasets
+  // we don't want the whole pipeline to stop in this case, so set errorStrategy to ignore
+  // in this case, the pipeline 
+  // see: https://www.nextflow.io/docs/latest/process.html#errorstrategy
+  errorStrategy 'ignore'
+
+
+  input:
+  tuple val(sample_id), path(input_fastq) from post_host_filter_ch
+
+  output:
+  tuple val(sample_id), path("${sample_id}_contigs.fa"), path(input_fastq) into post_assembly_ch
+
+  script:
+
+  // handle single-end or paired-end inputs
+  def r1 = input_fastq[0] 
+  def r2 = input_fastq[1] ? input_fastq[1] : ""
+  def spades_input  =      input_fastq[1] ? "-1 $r1 -2 $r2" : "-s $r1"
+  // def bowtie_file_output = input_fastq[1] ? "--un-conc ${sample_id}_R%_fuh.fastq" : "--un ${sample_id}_R1_fuh.fastq"
+  """
+  # run spades
+  spades.py -o ${sample_id}.spades ${spades_input} -t ${task.cpus} -m ${task.memory_gb}
+  
+  # consolidate output
+  # this forces it into 1-line format
+  # also remove contigs shorter than 150 bases
+  seqtk seq -A ${sample_id}.spades/contigs.fasta | ${params.scripts_bindir}/filter_fasta_by_size > ${sample_id}_contigs.fa
+  """
+}
+
+process quantify_read_mapping_to_contigs {
+  label 'lowmem_threaded'
+  publishDir "${params.contigs_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contigs), path(input_fastq) from post_assembly_ch
+
+  output:
+  tuple val(sample_id), path("${sample_id}_contig_weights.txt"), path("${sample_id}_contigs_and_singletons.fasta") into post_contigs_singletons_ch
+
+  script:
+  def r1 = input_fastq[0] 
+  """
+  bowtie2-build $contigs contig_bt_index
+
+  # C,120,1 makes min score 120 -> ~corresponds to 100% identity over ~60 bases
+  # TODO: make score configurable?
+  bowtie2 -x contig_bt_index --local --score-min C,120,1 -q -U $r1 -p ${task.cpus} -S contig_mapping_sam 
+
+  # count the # of reads that hit each contig 
+  # tally_sam_subjects script is just a series of piped bas commands: could move it here. 
+  ${params.scripts_bindir}/tally_sam_subjects contig_mapping_sam > ${sample_id}_contig_weights.txt
+
+  # create file of non-aligning aka singleton reads
+  samtools view -f 4 contig_mapping_sam | samtools fasta > ${sample_id}_non_contig_mapping_reads.fasta
+
+  # concatenate contigs and singleton
+  cat ${sample_id}_non_contig_mapping_reads.fasta $contigs > ${sample_id}_contigs_and_singletons.fasta
+  """
+}
+
+process blastn_contigs_and_singletons {
+  label 'highmem'
+  publishDir "${params.blast_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contig_weights), path(contigs_and_singletons) from post_contigs_singletons_ch
+
+  output:
+  tuple val(sample_id), path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_ch
+  tuple val(sample_id), path(contig_weights), path("${contigs_and_singletons}.bn_nt") into post_blastn_tally_ch
+  tuple val(sample_id), path(contigs_and_singletons), path("${contigs_and_singletons}.bn_nt") into post_blastn_distribute_ch
+
+  script:
+  def blastn_columns = "qaccver saccver pident length mismatch gaps qstart qend sstart send evalue bitscore staxid ssciname scomname sblastname sskingdom"
+  /*                                                                              
+            staxid means Subject Taxonomy ID                                    
+          ssciname means Subject Scientific Name                                
+          scomname means Subject Common Name                                    
+        sblastname means Subject Blast Name                                     
+         sskingdom means Subject Super Kingdom                                  
+  */                                                                              
+                                                                                
+  """                                                                           
+  # run megablast
+  # using db nt here implies that you have a 
+
+  # have to set this environmental variable so blast can be taxonomically aware 
+  # poorly documented feature of command line blast 
+  export "BLASTDB=${params.blast_db_dir}"
+
+  # run the megablast 
+  blastn -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt.no_header
+
+  # prepend blast output with the column names so we don't have to manually name them later
+  # and replace spaces with tabs                                                    
+  echo $blastn_columns | perl -p -e 's/ /\t/g' > blast_header                   
+
+  # concatenate header line and actual data
+  # TODO: prepend with sample ID and type of blast (?)
+  cat blast_header ${contigs_and_singletons}.bn_nt.no_header > ${contigs_and_singletons}.bn_nt
+
+  # get rid of unneeded temporary file
+  rm ${contigs_and_singletons}.bn_nt.no_header 
+
+  # pull out remaining sequences 
+  ${params.scripts_bindir}/fasta_from_blast -r ${contigs_and_singletons}.bn_nt > ${sample_id}_contigs_and_singletons_n.fasta
+  """                                                                           
+}
+
+process tally_blastn_results {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.tally_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contig_weights), path(blast_out) from post_blastn_tally_ch
+
+  output:
+  tuple val(sample_id), path("*.tally") into post_tally_ch
+
+  script:
+  // TODO: move tally_blast_hits logic into an R script?
+  // TODO: tally_blast_hits shouldn't need to do accession->taxid lookups anymore
+  """
+  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights $blast_out > ${blast_out}.tally
+  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
+  """
+}
+
+process distribute_blastn_results {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.virus_seq_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastn_distribute_ch
+
+  output:
+  tuple val(sample_id), path("*.fasta_*") optional true
+
+  script:
+  // TODO: move distribute logic into an R script?
+  """
+  # pull out virus-derived reads - this will create a file for each viral taxon
+  ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -v $contigs_and_singletons $blast_out
+  """
+}
+
