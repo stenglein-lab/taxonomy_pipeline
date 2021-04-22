@@ -657,6 +657,10 @@ process blastn_contigs_and_singletons {
         sblastname means Subject Blast Name                                     
          sskingdom means Subject Super Kingdom                                  
   */                                                                              
+
+  // TODO: run blast with different # of threads?  Would be good to benchmark first...
+  // this post suggests past 4 threads you get diminishing returns
+  // note that individual blastn processes here will use up to ~70Gb of RAM, possibly more
                                                                                 
   """                                                                           
   # run megablast
