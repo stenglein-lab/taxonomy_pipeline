@@ -72,11 +72,12 @@ params.mismatches_allowed = "2"
 
 // Blast e-value cutoffs                                                        
 params.max_blast_nt_evalue = "1e-10"  
+params.max_blasx_nr_evalue = "1e-3"  
 
 params.blast_db_dir = "/home/databases/nr_nt/"
 params.nt_blast_db = "${params.blast_db_dir}/nt"
 params.nr_blast_db = "${params.blast_db_dir}/nr"
-params.nr_diamond_db = "${params.blast_db_dir}/nr.dmd"
+params.nr_diamond_db = "${params.blast_db_dir}/nr.dmnd"
 
 // TODO: command line arg processing and validating 
 
@@ -644,7 +645,8 @@ process blastn_contigs_and_singletons {
   tuple val(sample_id), path(contig_weights), path(contigs_and_singletons) from post_contigs_singletons_ch
 
   output:
-  tuple val(sample_id), path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_ch
+  tuple val(sample_id), path(contig_weights), path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_ch
+  path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_merge_ch
   tuple val(sample_id), path(contig_weights), path("${contigs_and_singletons}.bn_nt") into post_blastn_tally_ch
   tuple val(sample_id), path(contigs_and_singletons), path("${contigs_and_singletons}.bn_nt") into post_blastn_distribute_ch
 
@@ -671,7 +673,8 @@ process blastn_contigs_and_singletons {
   export "BLASTDB=${params.blast_db_dir}"
 
   # run the megablast 
-  blastn -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt.no_header
+  # blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt.no_header
+  blastn -num_threads 4 -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt.no_header
 
   # prepend blast output with the column names so we don't have to manually name them later
   # and replace spaces with tabs                                                    
@@ -726,3 +729,112 @@ process distribute_blastn_results {
   """
 }
 
+// merge fasta for faster combined blastx search 
+
+post_blastn_blastx_merge_ch
+      .collectFile(name: 'merged_contigs_and_singletons.fasta')
+      .set{merged_blastx_ch}
+
+
+process blastx_merged_contigs_and_singletons {
+  label 'highmem'
+
+  input:
+  path(merged_contigs_and_singletons) from merged_blastx_ch
+
+  output:
+  path("${merged_contigs_and_singletons}.bx_nr") into merged_blastx_results_ch
+
+  script:
+  def blastx_columns = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore staxids sscinames sskingdoms"
+                                                                                
+  """                                                                           
+  # run diamond to do a blastx-style search
+
+  # have to set this environmental variable so blast can be taxonomically aware 
+  # poorly documented feature of command line blast 
+  export "BLASTDB=${params.blast_db_dir}"
+
+  diamond blastx --threads ${task.cpus} -c 1 -b 8 --db ${params.nr_diamond_db} --query $merged_contigs_and_singletons --more-sensitive --outfmt 6 $blastx_columns --evalue ${params.max_blasx_nr_evalue} --out ${merged_contigs_and_singletons}.bx_nr
+  """
+}
+
+merged_blastx_results_ch
+  .combine(post_blastn_blastx_ch)
+  .set{merged_blastx_with_input_ch}
+
+process split_merged_blastx_results {
+  label 'highmem'
+  publishDir "${params.blast_out_dir}", mode:'link'
+
+  input:
+  tuple path(merged_blastx_results), val(sample_id), path(contig_weights), path(contigs_and_singletons) from merged_blastx_with_input_ch
+
+  output:
+  tuple val(sample_id), path(contig_weights), path("${contigs_and_singletons}.bx_nr") into post_blastx_tally_ch
+  tuple val(sample_id), path(contigs_and_singletons), path("${contigs_and_singletons}.bx_nr") into post_blastx_distribute_ch
+  tuple val(sample_id), path("${sample_id}_contigs_and_singletons_nn.fasta") into post_blastx_unassigned_ch
+
+  script:
+  def blastx_columns = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore staxids sscinames sskingdoms"
+                                                                                
+  """                                                                           
+  # split out blastx hits for the contigs and singletons in this sample's file
+  # grep -e '^>' $contigs_and_singletons | tr -d '>' > fasta_headers
+  # pull out matching blastx results 
+  # grep -f fasta_headers $merged_blastx_results > ${contigs_and_singletons}.bx_nr.no_header
+
+  blast_from_fasta -f $contigs_and_singletons $merged_blastx_results > ${contigs_and_singletons}.bx_nr.no_header
+
+  # prepend blast output with the column names so we don't have to manually name them later
+  # and replace spaces with tabs                                                    
+  echo $blastx_columns | perl -p -e 's/ /\t/g' > blast_header                   
+
+  # concatenate header line and actual data
+  # TODO: prepend with sample ID and type of blast (?)
+  cat blast_header ${contigs_and_singletons}.bx_nr.no_header > ${contigs_and_singletons}.bx_nr
+
+  # get rid of unneeded temporary file
+  rm ${contigs_and_singletons}.bx_nr.no_header 
+
+  # pull out remaining sequences 
+  ${params.scripts_bindir}/fasta_from_blast -r ${contigs_and_singletons}.bx_nr > ${sample_id}_contigs_and_singletons_nn.fasta
+  """                                                                           
+}
+
+process tally_blastx_results {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.tally_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contig_weights), path(blast_out) from post_blastx_tally_ch
+
+  output:
+  tuple val(sample_id), path("*.tally") 
+
+  script:
+  // TODO: move tally_blast_hits logic into an R script?
+  // TODO: tally_blast_hits shouldn't need to do accession->taxid lookups anymore
+  """
+  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights $blast_out > ${blast_out}.tally
+  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
+  """
+}
+
+process distribute_blastx_results {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.virus_seq_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastx_distribute_ch
+
+  output:
+  tuple val(sample_id), path("*.fasta_*") optional true
+
+  script:
+  // TODO: move distribute logic into an R script?
+  """
+  # pull out virus-derived reads - this will create a file for each viral taxon
+  ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -v $contigs_and_singletons $blast_out
+  """
+}
