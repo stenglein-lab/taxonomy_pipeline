@@ -119,7 +119,7 @@ conda activate taxonomy
 ./run_pipeline_single_end dros_pool
 ```
 
-The `conda activate` command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yaml).
+The `conda activate` command will activate a conda environment that contains software like BLAST that the pipeline uses.  (The file that used to create this environment is [here](../server/taxo_recipe.yml).
 
 Note that the input to the pipeline is the name of the dataset, and the pipeline expects a file whose name is `<dataset>_R1.fastq` to exist in your present directory.  
 
