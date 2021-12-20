@@ -36,7 +36,7 @@ params.bam_out_dir = "${params.outdir}/bam/"
 // ------------------
 params.always_trim_5p_bases = "0" 
 params.always_trim_3p_bases = "1" 
-params.post_trim_min_length = "60" 
+params.post_trim_min_length = "30" 
 
 // --------------------
 // Host cell filtering
@@ -51,7 +51,8 @@ params.post_trim_min_length = "60"
 //  
 //    This enables different filtering for different datasets
 
-params.host_bt_index_map_file = "${params.input_dir}/host_index_map.txt"
+// params.host_bt_index_map_file = "${params.input_dir}/host_index_map.txt"
+params.host_bt_index_map_file = ""
 
 // 2. The path to a bowtie index that will be used to filter host reads
 //    for all datasets
@@ -60,7 +61,7 @@ params.host_bt_index_map_file = "${params.input_dir}/host_index_map.txt"
 params.host_bt_index = ""
 
 // min bowtie alignment score to be considered a host-derived read
-params.host_bt_min_score = "80"
+params.host_bt_min_score = "60"
 
 // where are R scripts found...
 params.R_bindir="${baseDir}/scripts"
@@ -299,7 +300,7 @@ process initial_fastq_count {
   // for an explanation of the xargs command used for arithmetic in a pipe, see: 
   // https://askubuntu.com/questions/1203063/how-can-i-pipe-the-result-of-the-wc-command-into-an-arithmetic-expansion
   '''
-  cat !{initial_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' | awk '{print "!{sample_id}" "\tinitial\t" $1}' > "!{sample_id}_initial_count.txt"
+  zcat -f !{initial_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' | awk '{print "!{sample_id}" "\tinitial\t" $1}' > "!{sample_id}_initial_count.txt"
   '''
 }
 
@@ -376,7 +377,7 @@ process trimmed_fastq_count {
   // only count the first file because for paired-read data both files
   // will have the same # of reads.
   '''
-  cat !{trimmed_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' |  awk '{print "!{sample_id}" "\tpost_trimming\t" $1}' > "!{sample_id}_trimmed_count.txt"
+  zcat -f !{trimmed_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' |  awk '{print "!{sample_id}" "\tpost_trimming\t" $1}' > "!{sample_id}_trimmed_count.txt"
   '''
 }
 
@@ -430,7 +431,7 @@ process collapsed_fastq_count {
   // only count the first file because for paired-read data both files
   // will have the same # of reads.
   '''
-  cat !{collapsed_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' |  awk '{print "!{sample_id}" "\tpost_collapse\t" $1}' > "!{sample_id}_collapsed_count.txt"
+  zcat -f !{collapsed_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' |  awk '{print "!{sample_id}" "\tpost_collapse\t" $1}' > "!{sample_id}_collapsed_count.txt"
   '''
 }
 
@@ -544,7 +545,7 @@ process host_filtered_fastq_count {
   // only count the first file because for paired-read data both files
   // will have the same # of reads.
   '''
-  cat !{filtered_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' |  awk '{print "!{sample_id}" "\tpost_host_filtered\t" $1}' > "!{sample_id}_host_filtered_count.txt"
+  zcat -f !{filtered_fastq[0]} | wc -l | xargs bash -c 'echo $(($0 / 4))' |  awk '{print "!{sample_id}" "\tpost_host_filtered\t" $1}' > "!{sample_id}_host_filtered_count.txt"
   '''
 }
 
