@@ -389,7 +389,10 @@ process collapse_duplicate_reads {
   label 'lowmem_threaded'                                                                
 
   input:
-  tuple val(sample_id), path(input_fastq) from post_trim_ch
+  // the filter{size()} functionality here checks if fastq is empty, 
+  // which causes cd-hit-dup to choke
+  // see: https://stackoverflow.com/questions/47401518/nextflow-is-an-input-file-empty
+  tuple val(sample_id), path(input_fastq) from post_trim_ch.filter{ it[1].first().size() > 0}
 
   output:
   tuple val(sample_id), path("*_fu.fastq") optional true into post_collapse_count_ch
@@ -399,8 +402,9 @@ process collapse_duplicate_reads {
   script:
 
   // this handles paired-end data, in which case must specify a paired output file
+  def r1              = input_fastq[1] 
   def prefix_param    = input_fastq[1] ? "-u 30" : "-u 50"
-  def paired_input    = input_fastq[1] ? "-i2 input_fastq[1]" : ""
+  def paired_input    = input_fastq[1] ? "-i2 $r1" : ""
   def paired_output   = input_fastq[1] ? "-o2 ${sample_id}_R2_fu.fastq" : ""
 
   """
