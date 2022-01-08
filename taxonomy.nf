@@ -392,7 +392,7 @@ process collapse_duplicate_reads {
   // the filter{size()} functionality here checks if fastq is empty, 
   // which causes cd-hit-dup to choke
   // see: https://stackoverflow.com/questions/47401518/nextflow-is-an-input-file-empty
-  tuple val(sample_id), path(input_fastq) from post_trim_ch.filter{ it[1].first().size() > 0}
+  tuple val(sample_id), path(input_fastq) from post_trim_ch.filter{ it[1]*.getAt(0).size() > 0}
 
   output:
   tuple val(sample_id), path("*_fu.fastq") optional true into post_collapse_count_ch

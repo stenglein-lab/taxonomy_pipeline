@@ -1,0 +1,4 @@
+_M_	/home/databases/fly/Dmel_genome_transcriptome
+_F_	/home/databases/fly/Dmel_genome_transcriptome
+Hela	/home/databases/human/GCRh38
+HeLa	/home/databases/human/GCRh38
