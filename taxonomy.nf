@@ -96,8 +96,7 @@ params.nr_diamond_db = "${params.blast_db_dir}/nr.dmnd"
     https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
 */
 Channel
-  // .fromFilePairs("${params.fastq_dir}/*{_[R]{1,2},_{1,2}}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
-  .fromFilePairs("${params.fastq_dir}/*_{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
+  .fromFilePairs("${params.fastq_dir}/*_R{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
   .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
 
 
@@ -410,6 +409,7 @@ process collapse_duplicate_reads {
   script:
 
   // this handles paired-end data, in which case must specify a paired output file
+<<<<<<< HEAD
   def r1 = input_fastq[0]
   def r2 = input_fastq[1] 
   def prefix_param    = input_fastq[1] ? "-u 30" : "-u 50"
