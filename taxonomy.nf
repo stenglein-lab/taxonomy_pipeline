@@ -409,7 +409,6 @@ process collapse_duplicate_reads {
   script:
 
   // this handles paired-end data, in which case must specify a paired output file
-<<<<<<< HEAD
   def r1 = input_fastq[0]
   def r2 = input_fastq[1] 
   def prefix_param    = input_fastq[1] ? "-u 30" : "-u 50"
@@ -420,7 +419,7 @@ process collapse_duplicate_reads {
   cd-hit-dup \
    -e $params.mismatches_allowed \
    $prefix_param \
-   -i ${input_fastq[0]} \
+   -i $r1
    $paired_input \
    -o ${sample_id}_R1_fu.fastq \
    $paired_output \
