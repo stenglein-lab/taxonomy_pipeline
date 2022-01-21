@@ -70,6 +70,9 @@ params.scripts_bindir="${baseDir}/scripts"
 // cd-hit-dup cutoff for collapsing reads with >= this much fractional similarity
 params.mismatches_allowed = "2"
 
+// classify singletons (reads that don't map to contigs) in addition to just contigs?
+// classifying singletons is slower but more thorough
+params.classify_singletons = false
 
 // Blast e-value cutoffs                                                        
 params.max_blast_nt_evalue = "1e-10"  
@@ -88,9 +91,13 @@ params.nr_diamond_db = "${params.blast_db_dir}/nr.dmnd"
 
 /*
  These fastq files represent the main input to this workflow
+
+ See here for info on glob pattern matching:
+    https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
 */
 Channel
-  .fromFilePairs("${params.fastq_dir}/*_R{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
+  // .fromFilePairs("${params.fastq_dir}/*{_[R]{1,2},_{1,2}}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
+  .fromFilePairs("${params.fastq_dir}/*_{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
   .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
 
 
@@ -389,7 +396,11 @@ process collapse_duplicate_reads {
   label 'lowmem_threaded'                                                                
 
   input:
-  tuple val(sample_id), path(input_fastq) from post_trim_ch
+  // the filter{size()} functionality here checks if fastq is empty, 
+  // which causes cd-hit-dup to choke
+  // see: https://stackoverflow.com/questions/47401518/nextflow-is-an-input-file-empty  
+  // this means that fastq that are empty at this stage will just stop going through pipeline 
+  tuple val(sample_id), path(input_fastq) from post_trim_ch.filter{ it[1]*.getAt(0).size() > 0}
 
   output:
   tuple val(sample_id), path("*_fu.fastq") optional true into post_collapse_count_ch
@@ -399,8 +410,10 @@ process collapse_duplicate_reads {
   script:
 
   // this handles paired-end data, in which case must specify a paired output file
+  def r1 = input_fastq[0]
+  def r2 = input_fastq[1] 
   def prefix_param    = input_fastq[1] ? "-u 30" : "-u 50"
-  def paired_input    = input_fastq[1] ? "-i2 input_fastq[1]" : ""
+  def paired_input    = input_fastq[1] ? "-i2 $r2" : ""
   def paired_output   = input_fastq[1] ? "-o2 ${sample_id}_R2_fu.fastq" : ""
 
   """
@@ -607,6 +620,7 @@ process assemble_remaining_reads {
   """
 }
 
+
 process quantify_read_mapping_to_contigs {
   label 'lowmem_threaded'
   publishDir "${params.contigs_out_dir}", mode:'link'
@@ -615,7 +629,7 @@ process quantify_read_mapping_to_contigs {
   tuple val(sample_id), path(contigs), path(input_fastq) from post_assembly_ch
 
   output:
-  tuple val(sample_id), path("${sample_id}_contig_weights.txt"), path("${sample_id}_contigs_and_singletons.fasta") into post_contigs_singletons_ch
+  tuple val(sample_id), path("${sample_id}_contig_weights.txt"), path(contigs), path(contig_mapping_sam) into post_contigs_weight_ch
 
   script:
   def r1 = input_fastq[0] 
@@ -629,27 +643,59 @@ process quantify_read_mapping_to_contigs {
   # count the # of reads that hit each contig 
   # tally_sam_subjects script is just a series of piped bas commands: could move it here. 
   ${params.scripts_bindir}/tally_sam_subjects contig_mapping_sam > ${sample_id}_contig_weights.txt
+  """
+}
 
+/*
+  Optionally merge contigs and singletons
+*/
+process merge_contigs_and_singletons {
+  label 'lowmem_threaded'
+  publishDir "${params.contigs_out_dir}", mode:'link'
+
+  input:
+  tuple val(sample_id), path(contig_weights), path(contigs), path(contig_mapping_sam) from post_contigs_weight_ch
+
+  output:
+  path("${sample_id}_contigs_and_singletons.fasta") into pre_blastn_merge_ch
+  tuple val(sample_id), path(contig_weights), path("${sample_id}_contigs_and_singletons.fasta") into post_contigs_singletons_ch
+
+  script:
+  // classify singletons and contigs - slower but more thorough
+  if (params.classify_singletons)
+  """
   # create file of non-aligning aka singleton reads
   samtools view -f 4 contig_mapping_sam | samtools fasta > ${sample_id}_non_contig_mapping_reads.fasta
 
   # concatenate contigs and singleton
   cat ${sample_id}_non_contig_mapping_reads.fasta $contigs > ${sample_id}_contigs_and_singletons.fasta
   """
+
+  // don't classify singletons - only classify contigs
+  else
+  """
+  # simply create a link of the contigs file named contigs_and_singletons
+  # TODO: fix this misleading naming scheme in case when not considering 
+  #       singletons
+  ln $contigs ${sample_id}_contigs_and_singletons.fasta
+  """
 }
+
+// merge fasta for faster combined blastn search 
+
+pre_blastn_merge_ch
+      .collectFile(name: 'merged_contigs_and_singletons.fasta')
+      .set{merged_blastn_ch}
 
 process blastn_contigs_and_singletons {
   label 'highmem'
-  publishDir "${params.blast_out_dir}", mode:'link'
+  // publishDir "${params.blast_out_dir}", mode:'link'
 
   input:
-  tuple val(sample_id), path(contig_weights), path(contigs_and_singletons) from post_contigs_singletons_ch
+  tuple path(contigs_and_singletons) from merged_blastn_ch
 
   output:
-  tuple val(sample_id), path(contig_weights), path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_ch
-  path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_merge_ch
-  tuple val(sample_id), path(contig_weights), path("${contigs_and_singletons}.bn_nt") into post_blastn_tally_ch
-  tuple val(sample_id), path(contigs_and_singletons), path("${contigs_and_singletons}.bn_nt") into post_blastn_distribute_ch
+  path("${contigs_and_singletons}.bn_nt") into merged_blastn_results_ch
 
   script:
   def blastn_columns = "qaccver saccver pident length mismatch gaps qstart qend sstart send evalue bitscore staxid ssciname scomname sblastname sskingdom"
@@ -662,20 +708,70 @@ process blastn_contigs_and_singletons {
   */                                                                              
 
   // TODO: run blast with different # of threads?  Would be good to benchmark first...
-  // this post suggests past 4 threads you get diminishing returns
   // note that individual blastn processes here will use up to ~70Gb of RAM, possibly more
                                                                                 
   """                                                                           
   # run megablast
-  # using db nt here implies that you have a 
+  # using db nt here implies that you have a local copy of this db installed
+  # TODO: remote blast option (may not work with taxids, etc.)
 
   # have to set this environmental variable so blast can be taxonomically aware 
   # poorly documented feature of command line blast 
   export "BLASTDB=${params.blast_db_dir}"
 
   # run the megablast 
-  # blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt.no_header
-  blastn -num_threads 4 -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt.no_header
+  blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt
+  """                                                                           
+}
+
+/*
+  This creates a new channel that merges all of the contigs and singletons
+  into a single merged file that will be the input to a single blastn call
+  
+  Run blastn as a merged single search because it takes so long to load
+  the blast database into memory and because each individual blastn process
+  uses so much memory.  So do it all as one then split up results afterwards.
+*/
+merged_blastn_results_ch
+  .combine(post_contigs_singletons_ch)
+  .set{merged_blastn_with_input_ch}
+
+/*
+  This splits the merged blastn results into results for each sample
+
+  The split is based on the query IDs in the blast results and whether
+  they match read or contig IDs present in the input contigs and singletons fasta
+  for individual samples.  Uses blast_from_fasta script.
+*/
+process split_merged_blastn_results {
+  label 'highmem'
+  publishDir "${params.blast_out_dir}", mode:'link'
+
+  input:
+  tuple path(merged_blastn_results), val(sample_id), path(contig_weights), path(contigs_and_singletons) from merged_blastn_with_input_ch
+
+  output:
+  tuple val(sample_id), path(contig_weights), path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_ch
+  path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_merge_ch
+  tuple val(sample_id), path(contig_weights), path("${contigs_and_singletons}.bn_nt") into post_blastn_tally_ch
+  tuple val(sample_id), path(contigs_and_singletons), path("${contigs_and_singletons}.bn_nt") into post_blastn_distribute_ch
+
+  script:
+  // TODO: this is defined twice: possible issue
+  def blastn_columns = "qaccver saccver pident length mismatch gaps qstart qend sstart send evalue bitscore staxid ssciname scomname sblastname sskingdom"
+  /*                                                                              
+            staxid means Subject Taxonomy ID                                    
+          ssciname means Subject Scientific Name                                
+          scomname means Subject Common Name                                    
+        sblastname means Subject Blast Name                                     
+         sskingdom means Subject Super Kingdom                                  
+  */                                                                              
+                                                                                
+  """                                                                           
+  # pull out blast hits for *this* sample
+  # assumes no repeated query IDs! 
+  # TODO: check this assumption, or prepend query IDs with sample IDs to make unique
+  ${params.scripts_bindir}/blast_from_fasta -f $contigs_and_singletons $merged_blastn_results > ${contigs_and_singletons}.bn_nt.no_header
 
   # prepend blast output with the column names so we don't have to manually name them later
   # and replace spaces with tabs                                                    
@@ -693,6 +789,9 @@ process blastn_contigs_and_singletons {
   """                                                                           
 }
 
+/*
+  Use the tally_blast_hits script to tally the number of reads mapping to different taxa
+*/
 process tally_blastn_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.tally_out_dir}", mode:'link'
@@ -712,6 +811,9 @@ process tally_blastn_results {
   """
 }
 
+/*
+   Use the distribute_fasta_by_blast_taxid script to pull out putative virus sequences
+*/
 process distribute_blastn_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.virus_seq_out_dir}", mode:'link'
@@ -730,13 +832,24 @@ process distribute_blastn_results {
   """
 }
 
-// merge fasta for faster combined blastx search 
-
+/*
+  This creates a new channel that merges all of the contigs and singletons
+  that remain unassigned after blastn-based assignments
+  into a single merged file that will be the input to a single diamond (blastx) call
+  
+  Run diamond as a merged single search because it takes so long to load
+  the database into memory and because each individual process
+  uses so much memory.  So do it all as one then split up results afterwards.
+*/
 post_blastn_blastx_merge_ch
       .collectFile(name: 'merged_contigs_and_singletons.fasta')
       .set{merged_blastx_ch}
 
 
+/*
+  Run diamond to attempt to assign contigs (and singletons) remaining
+  after blastn assignment
+*/
 process blastx_merged_contigs_and_singletons {
   label 'highmem'
 
@@ -752,18 +865,25 @@ process blastx_merged_contigs_and_singletons {
   """                                                                           
   # run diamond to do a blastx-style search
 
-  # have to set this environmental variable so blast can be taxonomically aware 
-  # poorly documented feature of command line blast 
+  # have to set this environmental variable so diamond can be taxonomically aware 
   export "BLASTDB=${params.blast_db_dir}"
 
   diamond blastx --threads ${task.cpus} -c 1 -b 8 --db ${params.nr_diamond_db} --query $merged_contigs_and_singletons --more-sensitive --outfmt 6 $blastx_columns --evalue ${params.max_blasx_nr_evalue} --out ${merged_contigs_and_singletons}.bx_nr
   """
 }
 
+/*
+  This combines the diamond output file with the individual fasta from each
+  dataset that were mushed together for a single diamond search
+*/
 merged_blastx_results_ch
   .combine(post_blastn_blastx_ch)
   .set{merged_blastx_with_input_ch}
 
+
+/*
+  Split up diamond results into results for each dataset.   Uses blast_from_fasta script.
+*/
 process split_merged_blastx_results {
   label 'highmem'
   publishDir "${params.blast_out_dir}", mode:'link'
@@ -780,12 +900,8 @@ process split_merged_blastx_results {
   def blastx_columns = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore staxids sscinames sskingdoms"
                                                                                 
   """                                                                           
-  # split out blastx hits for the contigs and singletons in this sample's file
-  # grep -e '^>' $contigs_and_singletons | tr -d '>' > fasta_headers
-  # pull out matching blastx results 
-  # grep -f fasta_headers $merged_blastx_results > ${contigs_and_singletons}.bx_nr.no_header
-
-  blast_from_fasta -f $contigs_and_singletons $merged_blastx_results > ${contigs_and_singletons}.bx_nr.no_header
+  # split out blastx hits for the contigs and singletons in *this* sample's file
+  ${params.scripts_bindir}/blast_from_fasta -f $contigs_and_singletons $merged_blastx_results > ${contigs_and_singletons}.bx_nr.no_header
 
   # prepend blast output with the column names so we don't have to manually name them later
   # and replace spaces with tabs                                                    
@@ -803,6 +919,9 @@ process split_merged_blastx_results {
   """                                                                           
 }
 
+/*
+  Use the tally_blast_hits script to tally the number of reads mapping to different taxa
+*/
 process tally_blastx_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.tally_out_dir}", mode:'link'
@@ -822,6 +941,9 @@ process tally_blastx_results {
   """
 }
 
+/*
+   Use the distribute_fasta_by_blast_taxid script to pull out putative virus sequences
+*/
 process distribute_blastx_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.virus_seq_out_dir}", mode:'link'
