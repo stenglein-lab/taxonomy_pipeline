@@ -1,3 +1,3 @@
 #!/bin/bash 
 
-nextflow run taxonomy.nf -resume -with-report -with-dag results/pipeline_flowchart.pdf --host_bt_index_map_file input/host_mapping.txt
+nextflow run main.nf -resume -with-report -with-dag results/pipeline_flowchart.pdf --host_bt_index_map_file input/host_mapping.txt
