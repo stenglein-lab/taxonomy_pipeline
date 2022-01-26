@@ -10,78 +10,9 @@
 */
 
 
-// TODO: command line options and parameter checking
-
 // output usage message
 params.help = false
 params.h = false
-
-params.input_dir = "$baseDir/input/"
-params.fastq_dir = "${params.input_dir}/fastq/"
-params.outdir = "$baseDir/results"                                                       
-
-params.initial_fastqc_dir = "${params.outdir}/initial_fastqc/" 
-params.post_trim_fastqc_dir = "${params.outdir}/post_trim_fastqc/" 
-params.host_filtered_out_dir = "${params.outdir}/host_filtered_fastq/"                        
-params.contigs_out_dir = "${params.outdir}/contigs/"                        
-params.blast_out_dir = "${params.outdir}/blast_output/"                        
-params.tally_out_dir = "${params.outdir}/tallies/"                        
-params.virus_seq_out_dir = "${params.outdir}/virus_sequences/"                        
-params.counts_out_dir = "${params.outdir}/fastq_counts/"                        
-params.fastq_out_dir = "${params.outdir}/trimmed_fastq/"                        
-params.bam_out_dir = "${params.outdir}/bam/"                                    
-
-// ------------------
-// Trimming settings
-// ------------------
-params.always_trim_5p_bases = "0" 
-params.always_trim_3p_bases = "1" 
-params.post_trim_min_length = "30" 
-
-// --------------------
-// Host cell filtering
-// --------------------
-// Define one of the 2 following parameters:
-// 
-// 1. A 2-column tab-delimited file with:
-//    - the first column defining dataset IDs or patterns that will
-//      match dataset IDs
-//    - the second column will be the path of a bowtie index that will be
-//      used to filter out host reads
-//  
-//    This enables different filtering for different datasets
-
-// params.host_bt_index_map_file = "${params.input_dir}/host_index_map.txt"
-params.host_bt_index_map_file = ""
-
-// 2. The path to a bowtie index that will be used to filter host reads
-//    for all datasets
-// 
-// params.host_bt_index = "/home/databases/fly/combined_fly_index"
-params.host_bt_index = ""
-
-// min bowtie alignment score to be considered a host-derived read
-params.host_bt_min_score = "60"
-
-// where are R scripts found...
-params.R_bindir="${baseDir}/scripts"
-params.scripts_bindir="${baseDir}/scripts"
-
-// cd-hit-dup cutoff for collapsing reads with >= this much fractional similarity
-params.mismatches_allowed = "2"
-
-// classify singletons (reads that don't map to contigs) in addition to just contigs?
-// classifying singletons is slower but more thorough
-params.classify_singletons = false
-
-// Blast e-value cutoffs                                                        
-params.max_blast_nt_evalue = "1e-10"  
-params.max_blasx_nr_evalue = "1e-3"  
-
-params.blast_db_dir = "/home/databases/nr_nt/"
-params.nt_blast_db = "${params.blast_db_dir}/nt"
-params.nr_blast_db = "${params.blast_db_dir}/nr"
-params.nr_diamond_db = "${params.blast_db_dir}/nr.dmnd"
 
 // TODO: command line arg processing and validating 
 
@@ -419,7 +350,7 @@ process collapse_duplicate_reads {
   cd-hit-dup \
    -e $params.mismatches_allowed \
    $prefix_param \
-   -i $r1
+   -i $r1 \
    $paired_input \
    -o ${sample_id}_R1_fu.fastq \
    $paired_output \
@@ -610,7 +541,8 @@ process assemble_remaining_reads {
   // def bowtie_file_output = input_fastq[1] ? "--un-conc ${sample_id}_R%_fuh.fastq" : "--un ${sample_id}_R1_fuh.fastq"
   """
   # run spades
-  spades.py -o ${sample_id}.spades ${spades_input} -t ${task.cpus} -m ${task.memory_gb}
+  # spades.py -o ${sample_id}.spades ${spades_input} -t ${task.cpus} -m ${task.memory}
+  spades.py -o ${sample_id}.spades ${spades_input} -t ${task.cpus} 
   
   # consolidate output
   # this forces it into 1-line format
@@ -691,10 +623,10 @@ process blastn_contigs_and_singletons {
   // publishDir "${params.blast_out_dir}", mode:'link'
 
   input:
-  tuple path(contigs_and_singletons) from merged_blastn_ch
+  path(merged_contigs_and_singletons) from merged_blastn_ch
 
   output:
-  path("${contigs_and_singletons}.bn_nt") into merged_blastn_results_ch
+  path("${merged_contigs_and_singletons}.bn_nt") into merged_blastn_results_ch
 
   script:
   def blastn_columns = "qaccver saccver pident length mismatch gaps qstart qend sstart send evalue bitscore staxid ssciname scomname sblastname sskingdom"
@@ -719,7 +651,7 @@ process blastn_contigs_and_singletons {
   export "BLASTDB=${params.blast_db_dir}"
 
   # run the megablast 
-  blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt
+  blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $merged_contigs_and_singletons -outfmt "6 $blastn_columns" -out ${merged_contigs_and_singletons}.bn_nt
   """                                                                           
 }
 
