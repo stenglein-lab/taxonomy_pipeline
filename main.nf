@@ -18,8 +18,6 @@ params.h = false
 
 // TODO: check that appropriate refseq files exist (host bt index, nr/nt, etc.)
 
-// TODO: handle fastq.gz compressed files 
-
 /*
  These fastq files represent the main input to this workflow
 
@@ -27,7 +25,7 @@ params.h = false
     https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
 */
 Channel
-  .fromFilePairs("${params.fastq_dir}/*_R{1,2}*.fastq*", size: -1, checkIfExists: true, maxDepth: 1)
+  .fromFilePairs("${params.fastq_dir}/${params.fastq_pattern}", size: -1, checkIfExists: true, maxDepth: 1)
   .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
 
 
@@ -37,11 +35,11 @@ def helpMessage() {
   log.info """
         Usage:
         The typical command for running the pipeline is as follows:
-        nextflow run main.nf --query QUERY.fasta --dbDir "blastDatabaseDirectory" --dbName "blastPrefixName"
+        nextflow run main.nf --
 
         Mandatory arguments:
         One of: 
-        -- host_bt_index_map_file      The path to a file that contains host filtering
+        --host_bt_index_map_file       The path to a file that contains host filtering
                                        info for all datasets or subsets of datasets.   
 
                                        This enables different filtering for different datasets
@@ -56,7 +54,7 @@ def helpMessage() {
                                          used to filter out host reads
                                        
 
-        -- host bt_index               The path to a bowtie index that will be used 
+        --host bt_index                The path to a bowtie index that will be used 
                                        to filter host reads for all datasets
 
         Optional arguments:
