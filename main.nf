@@ -203,6 +203,13 @@ process setup_indexes {
 process initial_qc {
   label 'lowmem_non_threaded'                                                                
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/fastqc:0.11.9--0"  
+  } else {                                                                      
+      container "quay.io/biocontainers/fastqc:0.11.9--0"                        
+  }     
+
   input:
   tuple val(sample_id), path(initial_fastq) from samples_ch_qc
 
@@ -247,6 +254,13 @@ process initial_fastq_count {
 process initial_multiqc {
   publishDir "${params.outdir}", mode:'link'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/multiqc:1.11--pyhdfd78af_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/multiqc:1.11--pyhdfd78af_0"              
+  }   
+
   input:
   val(all_sample_ids) from post_initial_qc_ch.collect()
 
@@ -265,6 +279,13 @@ process initial_multiqc {
 process trim_adapters_and_low_quality {
   label 'lowmem_non_threaded'                                                                
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container "https://depot.galaxyproject.org/singularity/cutadapt:3.5--py39h38f01e4_0"
+  } else {                                                                      
+    container "quay.io/biocontainers/cutadapt:3.5--py39h38f01e4_0"              
+  }        
+
   input:
   tuple val(sample_id), path(initial_fastq) from samples_ch_trim
 
@@ -272,7 +293,7 @@ process trim_adapters_and_low_quality {
   tuple val(sample_id), path("*_f.fastq") optional true into post_trim_ch
   tuple val(sample_id), path("*_f.fastq") optional true into post_trim_count_ch
 
-  // TODO: put adapters as a param (?)
+  // TODO: parameterize adapter sequences
   script:
 
   // this handles paired-end data, in which case must specify a paired output file
@@ -325,6 +346,14 @@ process trimmed_fastq_count {
 process collapse_duplicate_reads {
   label 'lowmem_threaded'                                                                
 
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container "https://depot.galaxyproject.org/singularity/cd-hit-auxtools:4.8.1--h7d875b9_1"
+  } else {                                                                      
+    container "quay.io/biocontainers/cd-hit-auxtools:4.8.1--h7d875b9_1"
+  }        
+
   input:
   // the filter{size()} functionality here checks if fastq is empty, 
   // which causes cd-hit-dup to choke
@@ -342,7 +371,7 @@ process collapse_duplicate_reads {
   // this handles paired-end data, in which case must specify a paired output file
   def r1 = input_fastq[0]
   def r2 = input_fastq[1] 
-  def prefix_param    = input_fastq[1] ? "-u 30" : "-u 50"
+  def prefix_param    = input_fastq[1] ? "-u 30" : "-u 30"
   def paired_input    = input_fastq[1] ? "-i2 $r2" : ""
   def paired_output   = input_fastq[1] ? "-o2 ${sample_id}_R2_fu.fastq" : ""
 
@@ -384,6 +413,13 @@ process collapsed_fastq_count {
 process post_collapse_qc {
   label 'lowmem_non_threaded'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/fastqc:0.11.9--0"  
+  } else {                                                                      
+      container "quay.io/biocontainers/fastqc:0.11.9--0"                        
+  }     
+
   input:
   tuple val(sample_id), path(input_fastq) from post_collapse_qc_ch
 
@@ -404,6 +440,13 @@ process post_collapse_qc {
 process post_preprocess_multiqc {
   publishDir "${params.outdir}", mode:'link'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/multiqc:1.11--pyhdfd78af_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/multiqc:1.11--pyhdfd78af_0"              
+  }   
+
   input:
   val(all_sample_ids) from post_collapse_multiqc_ch.collect()
 
@@ -422,6 +465,13 @@ process post_preprocess_multiqc {
 process host_filtering {
   label 'lowmem_threaded'                                                                
   publishDir "${params.host_filtered_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/bowtie2:2.4.5--py39ha4319a6_1"
+  } else {                                                                      
+      container "quay.io/biocontainers/bowtie2:2.4.5--py39ha4319a6_1"
+  }   
 
   input:
   tuple val(sample_id), path(input_fastq) from host_filtering_ch
@@ -497,6 +547,13 @@ process host_filtered_fastq_count {
 */
 process tabulate_fastq_counts {
   publishDir "${params.outdir}", mode: 'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "library://stenglein-lab/r_tools/r_tools:1.0.0"                 
+  } else {                                                                      
+      container "library://stenglein-lab/r_tools/r_tools:1.0.0"                 
+  }          
 
   input:
   path(all_count_files) from post_count_initial_ch.concat(post_count_collapse_ch, post_count_trim_ch, post_count_host_ch).collect()
