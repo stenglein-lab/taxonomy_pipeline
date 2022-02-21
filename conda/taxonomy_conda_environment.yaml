@@ -3,22 +3,21 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - blast=2.12.*
-  - fastqc=0.11.*
-  - multiqc=1.11
-  - bowtie2=2.4.*
-  - cutadapt=3.5
-  - samtools=1.14
-  - seqtk=1.3
-  # - nextflow=20.10.*
-  - r-base=4.1.*
-  - r-tidyverse=1.3.*
-  - r-openxlsx=4.2.* 
-  - r-egg=0.4.*
-  - cd-hit=4.8.*
-  - cd-hit-auxtools=4.8.*
-  - spades=3.15.*
-  - perl-dbi=1.642
-  - perl-dbd-sqlite=1.64
-  - perl-lwp-simple=6.15
-  - diamond=2.0.*
+  - bioconda::blast=2.12.*
+  - bioconda::fastqc=0.11.*
+  - bioconda::multiqc=1.12
+  - bioconda::bowtie2=2.4.*
+  - bioconda::cutadapt=3.5
+  - bioconda::samtools=1.14
+  - bioconda::seqtk=1.3
+  - conda-forge::r-base=4.1.*
+  - conda-forge::r-tidyverse=1.3.*
+  - conda-forge::r-openxlsx=4.2.* 
+  - conda-forge::r-egg=0.4.*
+  - bioconda::cd-hit=4.8.*
+  - bioconda::cd-hit-auxtools=4.8.*
+  - bioconda::spades=3.15.*
+  - bioconda::perl-dbi=1.643
+  - bioconda::perl-dbd-sqlite=1.70
+  - bioconda::perl-lwp-simple=6.39
+  - bioconda::diamond=2.0.*
