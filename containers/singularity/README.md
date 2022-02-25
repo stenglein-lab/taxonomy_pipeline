@@ -25,6 +25,11 @@ singularity key newpair
 
 I first had to create a singularity library account and login as described [here](https://sylabs.io/guides/latest/user-guide/cloud_library.html?highlight=push#overview)
 
+After you create a token you will need to do a remote login
+```
+singularity remote login
+```
+
 ```
 # modify version number as appropriate
 singularity push -D "A singularity image containing tidyverse and a few other R packages" r_taxonomy_tools.sif library://stenglein-lab/r_taxonomy_tools/r_taxonomy_tools:1.0.0
