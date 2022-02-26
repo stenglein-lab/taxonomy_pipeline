@@ -1,0 +1,32 @@
+Bootstrap: docker
+From: ubuntu:20.04
+
+%post
+
+    # install system packages needed to install perl and perl modules
+    apt-get clean && apt-get update && apt-get install -y perl locales 
+    apt-get install -y --no-install-recommends apt-utils build-essential 
+
+    # uncomment a line in /etc/locale.gen to set locale
+    # see: https://stackoverflow.com/questions/28405902/how-to-set-the-locale-inside-a-debian-ubuntu-docker-container
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
+
+    # set locale-related environmental variables to avoid perl warning
+    export LC_ALL=en_US.UTF-8
+    export LANG=en_US.UTF-8
+    export LANGUAGE=en_US.UTF-8
+    locale-gen en_US.UTF-8
+
+    # install cpanm, needed to install perl modules
+    apt-get clean && apt-get update && apt-get install -y cpanminus
+
+    # install perl modules 
+    cpanm install LWP::Simple
+    cpanm install DBI
+    cpanm install DBD::SQLite
+
+    rm -rf /tmp/downloaded_packages
+
+
+%labels
+    Author Mark Stenglein
