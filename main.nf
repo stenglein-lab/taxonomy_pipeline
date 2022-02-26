@@ -4,7 +4,7 @@
     Stenglein lab metagenomic classification pipeline 
     implemented in nextflow
 
-    March 9, 2021
+    Feb 25, 2022 
 
     Mark Stenglein
 */
@@ -344,7 +344,6 @@ process trimmed_fastq_count {
 process collapse_duplicate_reads {
   label 'lowmem_threaded'                                                                
 
-
   // singularity info for this process                                          
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
     container "https://depot.galaxyproject.org/singularity/cd-hit-auxtools:4.8.1--h7d875b9_1"
@@ -456,7 +455,6 @@ process post_preprocess_multiqc {
   """
 }
 
-
 /*
   Use bowtie2 to remove host-derived reads
 */
@@ -547,10 +545,8 @@ process tabulate_fastq_counts {
   publishDir "${params.outdir}", mode: 'link'
 
   // singularity info for this process                                          
-  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-      container "library://stenglein-lab/r_tools/r_tools:1.0.0"                 
-  } else {                                                                      
-      container "library://stenglein-lab/r_tools/r_tools:1.0.0"                 
+  if (workflow.containerEngine == 'singularity') {
+      container "library://stenglein-lab/r_taxonomy_tools/r_taxonomy_tools:1.0.0"                 
   }          
 
   input:
@@ -570,8 +566,14 @@ process tabulate_fastq_counts {
   Assemble reads remaining after host filtering
 */
 process assemble_remaining_reads {
-  publishDir "${params.contigs_out_dir}", mode:'link'
   label 'highmem'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/spades:3.15.4--h95f258a_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/spades:3.15.4--h95f258a_0"
+  }   
 
   // Spades will fail if, for instance, there are very few reads in the post-host-filtered datasets
   // this is expected for some kinds of datasets, such as water negative control datasets
@@ -580,12 +582,11 @@ process assemble_remaining_reads {
   // see: https://www.nextflow.io/docs/latest/process.html#errorstrategy
   errorStrategy 'ignore'
 
-
   input:
   tuple val(sample_id), path(input_fastq) from post_host_filter_ch
 
   output:
-  tuple val(sample_id), path("${sample_id}_contigs.fa"), path(input_fastq) into post_assembly_ch
+  tuple val(sample_id), path("${sample_id}.spades"), path(input_fastq) into post_assembly_ch
 
   script:
 
@@ -596,23 +597,56 @@ process assemble_remaining_reads {
   // def bowtie_file_output = input_fastq[1] ? "--un-conc ${sample_id}_R%_fuh.fastq" : "--un ${sample_id}_R1_fuh.fastq"
   """
   # run spades
-  # spades.py -o ${sample_id}.spades ${spades_input} -t ${task.cpus} -m ${task.memory}
   spades.py -o ${sample_id}.spades ${spades_input} -t ${task.cpus} 
-  
-  # consolidate output
-  # this forces it into 1-line format
-  # also remove contigs shorter than 150 bases
-  seqtk seq -A ${sample_id}.spades/contigs.fasta | ${params.scripts_bindir}/filter_fasta_by_size > ${sample_id}_contigs.fa
   """
 }
 
+/*
+  Get contigs from assembly, converting into 1-line fasta format
+*/
+process retrieve_contigs {
+  publishDir "${params.contigs_out_dir}", mode:'link'
+  label 'lowmem'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/seqtk:1.3--h5bf99c6_3"
+  } else {                                                                      
+      container "quay.io/biocontainers/seqtk:1.3--h5bf99c6_3"
+  }   
+
+  input:
+  tuple val(sample_id), path("${sample_id}.spades"), path(input_fastq) from post_assembly_ch
+
+  output:
+  tuple val(sample_id), path("${sample_id}_contigs.fa"), path(input_fastq) into post_contigs_ch
+
+  script:
+  """
+  # consolidate assembly output
+  # this forces contigs fasta into 1-line format
+  # also remove contigs shorter than minimum_contig_length bases
+  seqtk seq -A -L ${params.minimum_contig_length} ${sample_id}.spades/contigs.fasta > ${sample_id}_contigs.fa
+  """
+}
+
+/*
+  Map reads to contigs so that contigs can be weighted by the # of 
+  reads they account for.
+*/
 process quantify_read_mapping_to_contigs {
   label 'lowmem_threaded'
   publishDir "${params.contigs_out_dir}", mode:'link'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/bowtie2:2.4.5--py39ha4319a6_1"
+  } else {                                                                      
+      container "quay.io/biocontainers/bowtie2:2.4.5--py39ha4319a6_1"
+  }   
+
   input:
-  tuple val(sample_id), path(contigs), path(input_fastq) from post_assembly_ch
+  tuple val(sample_id), path(contigs), path(input_fastq) from post_contigs_ch
 
   output:
   tuple val(sample_id), path("${sample_id}_contig_weights.txt"), path(contigs), path(contig_mapping_sam) into post_contigs_weight_ch
@@ -638,6 +672,13 @@ process quantify_read_mapping_to_contigs {
 process merge_contigs_and_singletons {
   label 'lowmem_threaded'
   publishDir "${params.contigs_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/samtools:1.14--hb421002_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/samtools:1.14--hb421002_0"
+  }   
 
   input:
   tuple val(sample_id), path(contig_weights), path(contigs), path(contig_mapping_sam) from post_contigs_weight_ch
@@ -668,14 +709,23 @@ process merge_contigs_and_singletons {
 }
 
 // merge fasta for faster combined blastn search 
-
 pre_blastn_merge_ch
       .collectFile(name: 'merged_contigs_and_singletons.fasta')
       .set{merged_blastn_ch}
 
+/*
+  Use blastn to identify closest related database sequences
+*/
 process blastn_contigs_and_singletons {
   label 'highmem'
   // publishDir "${params.blast_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/blast:2.12.0--pl5262h3289130_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/blast:2.12.0--pl5262h3289130_0"          
+  }                                                                             
 
   input:
   path(merged_contigs_and_singletons) from merged_blastn_ch
@@ -733,6 +783,11 @@ process split_merged_blastn_results {
   label 'highmem'
   publishDir "${params.blast_out_dir}", mode:'link'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity') {
+      container "https://depot.galaxyproject.org/singularity/ubuntu:20.04"
+  }          
+
   input:
   tuple path(merged_blastn_results), val(sample_id), path(contig_weights), path(contigs_and_singletons) from merged_blastn_with_input_ch
 
@@ -782,6 +837,11 @@ process tally_blastn_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.tally_out_dir}", mode:'link'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity') {
+      container "library://stenglein-lab/perl_taxonomy_tools/perl_taxonomy_tools:1.0.0"
+  }          
+
   input:
   tuple val(sample_id), path(contig_weights), path(blast_out) from post_blastn_tally_ch
 
@@ -790,7 +850,7 @@ process tally_blastn_results {
 
   script:
   // TODO: move tally_blast_hits logic into an R script?
-  // TODO: tally_blast_hits shouldn't need to do accession->taxid lookups anymore
+  // TODO: tally_blast_hits shouldn't need to do accession->taxid lookups if taxid are in blast results
   """
   ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights $blast_out > ${blast_out}.tally
   ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
@@ -803,6 +863,11 @@ process tally_blastn_results {
 process distribute_blastn_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.virus_seq_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity') {
+      container "library://stenglein-lab/perl_taxonomy_tools/perl_taxonomy_tools:1.0.0"
+  }          
 
   input:
   tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastn_distribute_ch
@@ -839,6 +904,13 @@ post_blastn_blastx_merge_ch
 process blastx_merged_contigs_and_singletons {
   label 'highmem'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/diamond:2.0.14--hdcc8f71_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/diamond:2.0.14--hdcc8f71_0"
+  }                                                                             
+
   input:
   path(merged_contigs_and_singletons) from merged_blastx_ch
 
@@ -873,6 +945,11 @@ merged_blastx_results_ch
 process split_merged_blastx_results {
   label 'highmem'
   publishDir "${params.blast_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity') {
+      container "https://depot.galaxyproject.org/singularity/ubuntu:20.04"
+  }          
 
   input:
   tuple path(merged_blastx_results), val(sample_id), path(contig_weights), path(contigs_and_singletons) from merged_blastx_with_input_ch
@@ -912,6 +989,12 @@ process tally_blastx_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.tally_out_dir}", mode:'link'
 
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity') {
+      // container "https://depot.galaxyproject.org/singularity/ubuntu:20.04"
+      container "library://stenglein-lab/perl_taxonomy_tools/perl_taxonomy_tools:1.0.0"
+  }          
+
   input:
   tuple val(sample_id), path(contig_weights), path(blast_out) from post_blastx_tally_ch
 
@@ -933,6 +1016,11 @@ process tally_blastx_results {
 process distribute_blastx_results {
   label 'lowmem_nonthreaded'
   publishDir "${params.virus_seq_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity') {
+      container "library://stenglein-lab/perl_taxonomy_tools/perl_taxonomy_tools:1.0.0"
+  }          
 
   input:
   tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastx_distribute_ch
