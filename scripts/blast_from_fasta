@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 # given a fasta file and a blast output file, output the records in the
 # blast file that have a corresponding entry in the fasta file
