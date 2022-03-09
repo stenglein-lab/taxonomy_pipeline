@@ -16,20 +16,24 @@ First you need to get the pipeline code.  You do this using git:
 ```
 git clone -b nextflow https://github.com/stenglein-lab/taxonomy_pipeline.git 2022_3_analysis
 ```
-This will download a copy of the pipeline files and put them in the directory `2022_3_analysis`.  In all the examples in this documentation we will use this example name but you can name this directory anything you want.
+This will download a copy of the pipeline files and put them in the directory `2022_3_analysis` but this is just an example name: you can name the directory anything you want. 
  
 #### Step 2. Move your fastq files to the new directory 
 
-The pipeline expects your fastq files to be in a sub directory named input/fastq.  The next step will be to move your fastq files there.
+The pipeline expects your fastq files to be in a subdirectory named input/fastq.  The next step will be to move your fastq files there.
 
 ```
 # transfer fastq files from an example location to the pipeline directory
 mv /home/mdstengl/raw_data/*.fastq.gz 2022_3_analysis/input/fastq
 ```
 
+The fastq files should contain Illumina reads, but can be single or paired-end, or a mix, or cogzip compressed (end in .gz) or not, or a mix of compressed and uncompressed.  It would be a best practice to keep your fastq files gzipped to take up less space on server storage.  
+
+Note that the pipeline looks for files with names that match the pattern `*_R{1,2}*.fastq*`.  You can change this pattern using the argument `--fastq_pattern` as input to the nextflow command.
+
 #### Step 3. Setup host filtering
 
-The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classificaiton steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_genome) provides instructions for how to download a new host genome and build a bowtie2 index if there is not one already available.
+The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
 
 To specify which bowtie2 index will be used for your datasets you should setup a file that maps dataset names to host genomes.  An [example of this file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This example contains two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
 
@@ -57,7 +61,7 @@ $ ls /home/databases/human/GCRh38.*
 
 You will need to setup this host_mapping file to specify which host reference genomes (bowtie2 indexes) should be used to remove host reads from your datasets.  You can edit the provided `input/host_mapping.txt` file or you can create a new file and specify its location using the `--host_map_file` command line argument when you run nextflow.
 
-If you fail to specify a host mapping file the pipeline will exit with an error.  But you don't necessarily need to perform host filtering for all (or even any) datasets: Any dataset that doesn't match one of the patterns in the host map file will not be host filtered.
+If you fail to specify a host mapping file the pipeline will warn you that no host filtering will be performed.  If you do specify host filtering, you don't necessarily need to perform filtering for all datasets: Any dataset whose fastq file name doesn't match one of the patterns in the host map file will not be host filtered.
 
 #### Step 4. Actually run the pipeline
 
@@ -114,9 +118,9 @@ nextflow run main.nf -profile singularity
 
 Singularity containers will be automatically downloaded and stored in a directory named `singularity_cacheDir` in your home directory.  They will only be downloaded once. 
 
-#### Conda environemtn
+#### Conda environment
 
-The pipeline can also use an all-in-one conda environment.  This requires that conda is installed on your computer.  To test if conda is installed, run:
+The pipeline can also use an all-in-one conda environment.  This requires conda to be installed on your computer.  To test if conda is installed, run:
 
 ```
 conda -V
