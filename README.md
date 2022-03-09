@@ -76,8 +76,11 @@ Because the pipeline will likely run for a while (depending on dataset sizes), y
 
 The pipeline puts output in a `results` directory.
 
--Virus sequences: in the results/virus_sequences directory
--Taxonomic tabulation: in the results/tallies directory
+- Virus sequences: in the `results/virus_sequences` directory
+- Taxonomic tabulation: in the `tallies` directory.  These are tab-delimited tables of the taxa observed in each dataset, the # of mapping reads, average percent identity to database sequences, etc.
+- Contigs: in the `contigs` directory.  Contigs from assembly of reads remaining after host filtering.
+- QC reports: `initial_qc_report.html` and `post_trim_qc_report.html
+- Plots of # and fraction reads remaining after filtering steps: `filtering_plots.pdf`
 
 TODO - flesh out this section
 
