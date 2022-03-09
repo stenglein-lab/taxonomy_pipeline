@@ -39,7 +39,7 @@ def helpMessage() {
 
         Mandatory arguments:
         One of: 
-        --host_bt_index_map_file       The path to a file that contains host filtering
+        --host_map_file                The path to a file that contains host filtering
                                        info for all datasets or subsets of datasets.   
 
                                        This enables different filtering for different datasets
@@ -77,29 +77,29 @@ if (params.help || params.h) {
 def check_params () {
 
   // must specify one and only one of these 2 host mapping 
-  if (!params.host_bt_index_map_file && !params.host_bt_index){
+  if (!params.host_map_file && !params.host_bt_index){
     log.info """
       Error: you may specify one of these two parameters:
-        1. host_bt_index_map_file ($params.host_bt_index_map_file) and 
+        1. host_map_file ($params.host_map_file) and 
         2. host_bt_index ($params.host_bt_index) 
     """
     helpMessage()
   }
 
-  if (params.host_bt_index_map_file && params.host_bt_index){
+  if (params.host_map_file && params.host_bt_index){
     log.info """
       Error: you may specify only one of these two parameters:
-        1. host_bt_index_map_file ($params.host_bt_index_map_file) and 
+        1. host_map_file ($params.host_map_file) and 
         2. host_bt_index ($params.host_bt_index) 
     """
     helpMessage()
   }
 
-  if (params.host_bt_index_map_file) {
-    host_map_file = file(params.host_bt_index_map_file)
+  if (params.host_map_file) {
+    host_map_file = file(params.host_map_file)
     if (!host_map_file.exists()) {  
       log.info  """
-        Error: host_bt_index_map_file ($params.host_bt_index_map_file) does not exist 
+        Error: host_map_file ($params.host_map_file) does not exist 
       """
       helpMessage() 
     }
@@ -117,9 +117,9 @@ host_map = [:]
 def setup_host_indexes () {
    
   // Store the bowtie index to be used for each dataset ID or dataset ID pattern
-  if (params.host_bt_index_map_file) {
+  if (params.host_map_file) {
 
-    host_map_file = file(params.host_bt_index_map_file)
+    host_map_file = file(params.host_map_file)
 
     // read through the file
     allLines  = host_map_file.readLines()
