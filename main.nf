@@ -79,9 +79,12 @@ def check_params () {
   // must specify one and only one of these 2 host mapping 
   if (!params.host_map_file && !params.host_bt_index){
     log.info """
-      Error: you may specify one of these two parameters:
-        1. host_map_file ($params.host_map_file) and 
-        2. host_bt_index ($params.host_bt_index) 
+      Warning: you have not specified either of these two parameters.  
+               No host filtering will be performed.
+
+        1. host_map_file (--host_map_file) or 
+        2. host_bt_index (--host_bt_index) 
+     
     """
     helpMessage()
   }
@@ -89,10 +92,13 @@ def check_params () {
   if (params.host_map_file && params.host_bt_index){
     log.info """
       Error: you may specify only one of these two parameters:
-        1. host_map_file ($params.host_map_file) and 
-        2. host_bt_index ($params.host_bt_index) 
+
+        1. host_map_file (--host_map_file) and 
+        2. host_bt_index (--host_bt_index) 
     """
     helpMessage()
+    // Stop execution
+    System.exit(1)
   }
 
   if (params.host_map_file) {
