@@ -57,7 +57,7 @@ $ ls /home/databases/human/GCRh38.*
 
 You will need to setup this host_mapping file to specify which host reference genomes (bowtie2 indexes) should be used to remove host reads from your datasets.  You can edit the provided `input/host_mapping.txt` file or you can create a new file and specify its location using the `--host_map_file` command line argument when you run nextflow.
 
-If you fail to specify any host mapping the pipeline will create an error.  Any dataset that doesn't match one of the provided patterns will not be host filtered.
+If you fail to specify a host mapping file the pipeline will exit with an error.  But you don't necessarily need to perform host filtering for all (or even any) datasets: Any dataset that doesn't match one of the patterns in the host map file will not be host filtered.
 
 #### Step 4. Actually run the pipeline
 
@@ -68,7 +68,7 @@ Now you actually need to run the pipeline.  An example command to run it:
 nextflow run main.nf -resume -profile singularity,local --host_map_file input/host_mapping.txt
 ```
 
-This assumes you are working on a server with nextflow and singularity installed.  See below for more information on these dependencies.
+This assumes you are working on a server with nextflow and singularity installed.  See the Dependencies below for more information on these dependencies.  
 
 Because the pipeline will likely run for a while (depending on dataset sizes), you will want to run it via a screen session.  See [this tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_screen) for more information on using screen.
 
