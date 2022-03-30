@@ -362,6 +362,7 @@ process collapse_duplicate_reads {
   // which causes cd-hit-dup to choke
   // see: https://stackoverflow.com/questions/47401518/nextflow-is-an-input-file-empty  
   // this means that fastq that are empty at this stage will just stop going through pipeline 
+  // TODO: there shouldn't be an asterisk (spread operator) in this filter step ?  
   tuple val(sample_id), path(input_fastq) from post_trim_ch.filter{ it[1]*.getAt(0).size() > 0}
 
   output:
