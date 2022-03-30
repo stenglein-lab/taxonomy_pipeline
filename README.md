@@ -5,7 +5,7 @@ This is a nextflow implementation of the pipeline used in the [Stenglein lab](ht
 
 It is mainly designed to identify virus sequences in a metagenomic dataset but it also performs a general taxonomic classification of sequences.
 
-A previous bash-based version of this pipeline has been reported in a number of [publications](https://www.stengleinlab.org/papers/) from our lab. 
+A [previous bash-based version of this pipeline](https://github.com/stenglein-lab/taxonomy_pipeline/releases/tag/2022_3_30_bash) has been reporpted in a number of [publications](https://www.stengleinlab.org/papers/) from our lab. 
 
 ## How to run the pipeline
 
@@ -14,7 +14,7 @@ A previous bash-based version of this pipeline has been reported in a number of 
 
 First you need to get the pipeline code.  You do this using git:
 ```
-git clone -b nextflow https://github.com/stenglein-lab/taxonomy_pipeline.git 2022_3_analysis
+git clone https://github.com/stenglein-lab/taxonomy_pipeline.git 2022_3_analysis
 ```
 This will download a copy of the pipeline files and put them in the directory `2022_3_analysis` but this is just an example name: you can name the directory anything you want. 
  
