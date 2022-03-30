@@ -29,7 +29,7 @@ mv /home/mdstengl/raw_data/*.fastq.gz 2022_3_analysis/input/fastq
 
 The fastq files should contain Illumina reads, but can be single or paired-end, or a mix, or cogzip compressed (end in .gz) or not, or a mix of compressed and uncompressed.  It would be a best practice to keep your fastq files gzipped to take up less space on server storage.  
 
-Note that the pipeline looks for files with names that match the pattern `*_R{1,2}*.fastq*`.  You can change this pattern using the argument `--fastq_pattern` as input to the nextflow command.
+Note that the pipeline looks for files with names that match the pattern `*_R[12]_*.fastq*`.  You can change this pattern using the argument `--fastq_pattern` as input to the nextflow command.
 
 #### Step 3. Setup host filtering
 
