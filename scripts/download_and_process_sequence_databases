@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+# download and unpack the NCBI nr and nt databases
+# Mark Stenglein Feb 18, 2022
+
+# create a list of nr and nt files
+# assume the dbs will go up to 99 sub-files - may have to up this in the future
+# if change is req'd will have to make sure numbering is ok, w/ regards to 0 padding...
+
+# first, get and unpack the taxdb file blast cli applications need to be 'taxonomically aware'
+echo "*******************************"
+echo "*** downloading taxdb files ***"
+echo "*******************************"
+curl -O ftp://ftp.ncbi.nlm.nih.gov/blast/db/taxdb.tar.gz
+tar xvf taxdb.tar.gz
+
+# next download NCBI nt blast database
+echo "******************************************"
+echo "*** downloading NCBI nt blast database ***"
+echo "******************************************"
+date
+
+num_subfiles=99 
+
+subfile_nums=(`seq -s " " -w 0 $num_subfiles`)
+
+nt_files=()
+
+subfile=1
+for subfile in ${subfile_nums[@]}
+do
+   nt_file="nt.${subfile}.tar.gz"
+   nt_files+=($nt_file)
+   nr_files+=($nr_file)
+done
+
+echo "starting download and unpacking of files"
+date
+
+echo "fetching nt files from NCBI FTP server"
+for f in ${nt_files[@]}
+do
+   wget -N ftp://ftp.ncbi.nih.gov/blast/db/$f
+done
+
+echo "unpacking nt files"
+for f in `ls nt.??.tar.gz`
+do
+   tar xfzv $f
+done
+
+echo "finished downloading and unpacking nt blast database files"
+date 
+
+# clean up
+rm -f nt*.tar.gz*
+rm -f nr*.tar.gz*
+
+
+# build database indexes
+echo "************************************************"
+echo "*** building diamond index from nr sequences ***"
+echo "************************************************"
+
+# build new index in a separate directory
+# create it and then cd there
+today=`date +%Y_%m_%d`
+index_dir=indexes_${today}
+mkdir $index_dir
+cd $index_dir
+
+# download nr protein db in fasta format
+wget ftp://ftp.ncbi.nlm.nih.gov/blast/db/FASTA/nr.gz
+
+echo "creating diamond index of nr database"
+date
+
+# download taxonomy info from NCBI so that diamond database will be taxonomically aware... 
+echo "downloading taxonomy accession -> taxid mapping information from NCBI"
+curl -OL ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/accession2taxid/prot.accession2taxid.FULL.gz
+curl -OL ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdmp.zip
+unzip taxdmp.zip
+rm -f taxdmp.zip
+
+# use half of the available CPUs to make diamond index
+num_cpus=`nproc`
+if [$? -ne 0 ]; then
+   num_cpus=1
+else
+   num_cpus=$(( $num_cpus / 2 ))
+fi
+
+# make the database and transfer to parent directory
+diamond makedb --in nr.gz -d nr --taxonmap prot.accession2taxid.FULL.gz --taxonnames names.dmp --taxonnodes nodes.dmp --threads $num_cpus
+mv nr.dmnd ..
+
+# clean up
+rm -f nr.gz* 
+rm -f prot.accession2taxid.FULL.gz*
+rm -f names.dmp*
+rm -f nodes.dmp*
+
+echo "finished building diamond index"
+date
+
