@@ -691,7 +691,6 @@ process merge_contigs_and_singletons {
   tuple val(sample_id), path(contig_weights), path(contigs), path(contig_mapping_sam) from post_contigs_weight_ch
 
   output:
-  path("${sample_id}_contigs_and_singletons.fasta") into pre_blastn_merge_ch
   tuple val(sample_id), path(contig_weights), path("${sample_id}_contigs_and_singletons.fasta") into post_contigs_singletons_ch
 
   script:
@@ -715,11 +714,6 @@ process merge_contigs_and_singletons {
   """
 }
 
-// merge fasta for faster combined blastn search 
-pre_blastn_merge_ch
-      .collectFile(name: 'merged_contigs_and_singletons.fasta')
-      .set{merged_blastn_ch}
-
 /*
   Use blastn to identify closest related database sequences
 */
@@ -735,10 +729,11 @@ process blastn_contigs_and_singletons {
   }                                                                             
 
   input:
-  path(merged_contigs_and_singletons) from merged_blastn_ch
+  // path(merged_contigs_and_singletons) from pre_blastn_merge_ch
+  tuple val(sample_id), path(contig_weights), path(contigs_and_singletons) from post_contigs_singletons_ch
 
   output:
-  path("${merged_contigs_and_singletons}.bn_nt") into merged_blastn_results_ch
+  tuple path("${contigs_and_singletons}.bn_nt"), val(sample_id), path(contig_weights), path(contigs_and_singletons) into post_blastn_ch
 
   script:
   def blastn_columns = "qaccver saccver pident length mismatch gaps qstart qend sstart send evalue bitscore staxid ssciname scomname sblastname sskingdom"
@@ -763,21 +758,9 @@ process blastn_contigs_and_singletons {
   export "BLASTDB=${params.blast_db_dir}"
 
   # run the megablast 
-  blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $merged_contigs_and_singletons -outfmt "6 $blastn_columns" -out ${merged_contigs_and_singletons}.bn_nt
+  blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt
   """                                                                           
 }
-
-/*
-  This creates a new channel that merges all of the contigs and singletons
-  into a single merged file that will be the input to a single blastn call
-  
-  Run blastn as a merged single search because it takes so long to load
-  the blast database into memory and because each individual blastn process
-  uses so much memory.  So do it all as one then split up results afterwards.
-*/
-merged_blastn_results_ch
-  .combine(post_contigs_singletons_ch)
-  .set{merged_blastn_with_input_ch}
 
 /*
   This splits the merged blastn results into results for each sample
@@ -796,7 +779,7 @@ process split_merged_blastn_results {
   }          
 
   input:
-  tuple path(merged_blastn_results), val(sample_id), path(contig_weights), path(contigs_and_singletons) from merged_blastn_with_input_ch
+  tuple path(blastn_results), val(sample_id), path(contig_weights), path(contigs_and_singletons) from post_blastn_ch
 
   output:
   tuple val(sample_id), path(contig_weights), path("${sample_id}_contigs_and_singletons_n.fasta") into post_blastn_blastx_ch
@@ -816,24 +799,21 @@ process split_merged_blastn_results {
   */                                                                              
                                                                                 
   """                                                                           
-  # pull out blast hits for *this* sample
-  # assumes no repeated query IDs! 
-  # TODO: check this assumption, or prepend query IDs with sample IDs to make unique
-  ${params.scripts_bindir}/blast_from_fasta -f $contigs_and_singletons $merged_blastn_results > ${contigs_and_singletons}.bn_nt.no_header
+  mv $blastn_results ${blastn_results}.no_header
 
+  # TODO: move this code block up to the blast process to avoid defining blastn_columns twice
   # prepend blast output with the column names so we don't have to manually name them later
   # and replace spaces with tabs                                                    
   echo $blastn_columns | perl -p -e 's/ /\t/g' > blast_header                   
 
   # concatenate header line and actual data
-  # TODO: prepend with sample ID and type of blast (?)
-  cat blast_header ${contigs_and_singletons}.bn_nt.no_header > ${contigs_and_singletons}.bn_nt
+  cat blast_header ${blastn_results}.no_header > ${blastn_results}
 
   # get rid of unneeded temporary file
-  rm ${contigs_and_singletons}.bn_nt.no_header 
+  rm ${blastn_results}.no_header 
 
   # pull out remaining sequences 
-  ${params.scripts_bindir}/fasta_from_blast -r ${contigs_and_singletons}.bn_nt > ${sample_id}_contigs_and_singletons_n.fasta
+  ${params.scripts_bindir}/fasta_from_blast -r ${blastn_results} > ${sample_id}_contigs_and_singletons_n.fasta
   """                                                                           
 }
 
