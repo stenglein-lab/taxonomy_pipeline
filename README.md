@@ -69,7 +69,7 @@ Now you actually need to run the pipeline.  An example command to run it:
 
 ```
 # assuming you are in the pipeline main directory (2022_3_analyis in the example above)
-nextflow run main.nf -resume -profile conda,local --host_map_file input/host_mapping.txt
+nextflow run main.nf -resume -profile singularity,local --host_map_file input/host_mapping.txt
 ```
 
 This assumes you are working on a server with nextflow and conda installed.  See the Dependencies below for more information on these dependencies.  
