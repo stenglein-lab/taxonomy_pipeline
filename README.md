@@ -33,7 +33,7 @@ Note that the pipeline looks for files with names that match the pattern `*_R[12
 
 #### Step 3. Setup host filtering
 
-The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
+The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
 
 To specify which bowtie2 index will be used for your datasets you should setup a file that maps dataset names to host genomes.  An [example of this file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This example contains two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
 
@@ -74,7 +74,7 @@ nextflow run main.nf -resume -profile singularity,local --host_map_file input/ho
 
 This assumes you are working on a server with nextflow and conda installed.  See the Dependencies below for more information on these dependencies.  
 
-Because the pipeline will likely run for a while (depending on dataset sizes), you will want to run it via a screen session.  See [this tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_screen) for more information on using screen.
+Because the pipeline will likely run for a while (depending on dataset sizes), you will want to run it via a screen session.  See [this tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_screen) for more information on using screen.
 
 ## Pipeline output 
 
@@ -149,9 +149,9 @@ This pipeline uses two databases for taxonomic classification:
 
 (2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.
 
-(3) A local version of the [NCBI Taxonomy]() database.
+(3) A local version of the [NCBI Taxonomy](https://ftp.ncbi.nih.gov/pub/taxonomy/) database.
 
-These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  A script to download these databases from NCBI [is included](download_and_process_sequence_databases) in this repository.  These databases take up a lot of space, so before doing this make sure that these databases are not already downloaded.
+These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  A script to download these databases from NCBI [is included](./scripts/download_and_process_sequence_databases) in this repository.  These databases take up a lot of space, so before doing this make sure that these databases are not already downloaded.
 
 #### Database locations
 
