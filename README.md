@@ -145,13 +145,13 @@ The pipeline also uses custom R and perl scripts, which are located in the [scri
 
 This pipeline uses two databases for taxonomic classification:
 
-(1) The [NCBI nt nucleotide database](https://ftp.ncbi.nlm.nih.gov/blast/db/) for use in blastn searches.  
+(1) The [NCBI nt nucleotide database](https://ftp.ncbi.nlm.nih.gov/blast/db/) for use in blastn searches.  [This script](./scripts/download_and_process_sequence_databases) will download the NCBI nt BLAST database (and create the diamond database described next).
 
-(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.
+(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.  This is downloaded and created as part of [this script](./scripts/download_and_process_sequence_databases)
 
-(3) A local version of the [NCBI Taxonomy](https://ftp.ncbi.nih.gov/pub/taxonomy/) database.
+(3) A local version of the [NCBI Taxonomy](https://ftp.ncbi.nih.gov/pub/taxonomy/) database.  [This script](./scripts/download_and_process_taxonomy_databases) can be used to download and process the appropriate databases.  These databases are downloaded in plain-text format and converted into sqlite databases.
 
-These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  A script to download these databases from NCBI [is included](./scripts/download_and_process_sequence_databases) in this repository.  These databases take up a lot of space, so before doing this make sure that these databases are not already downloaded.
+These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  These databases take up a lot of space, so before doing this make sure that these databases are not already available locally.
 
 #### Database locations
 
@@ -170,7 +170,8 @@ The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`
 
 ##### Taxonomy db
 
-TODO - fill out this section
+The NCBI taxonomy databases are expected to be in the directory `/home/databases/NCBI_Taxonomy/` as sqlite databases created by [this script](./scripts/download_and_process_taxonomy_databases).  Unfortunately, this path is currently hardcoded and I need to [fix this hardcoding issue](https://github.com/stenglein-lab/taxonomy_pipeline/issues/11).
+
 
 ## Assumptions about input data
 
