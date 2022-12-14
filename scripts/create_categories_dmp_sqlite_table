@@ -1,0 +1,63 @@
+#!/bin/bash -x
+
+# This script creates a sqlite database from the NCBI Taxonomy database's categories.dmp file
+# 
+# According to this document: ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxcat_readme.txt
+#
+# The taxcat dump contains a single file -
+# 
+#   categories.dmp
+# 
+# categories.dmp contains a single line for each node
+# that is at or below the species level in the NCBI 
+# taxonomy database.
+# 
+# The first column is the top-level category -
+# 
+#   A = Archaea
+#   B = Bacteria
+#   E = Eukaryota
+#   V = Viruses and Viroids
+#   U = Unclassified and Other
+# 
+# The third column is the taxid itself,
+# and the second column is the corresponding
+# species-level taxid.
+# 
+# These nodes in the taxonomy -
+# 
+#   242703 - Acidilobus saccharovorans
+#   666510 - Acidilobus saccharovorans 345-15 
+# 
+# will appear in categories.dmp as -
+# 
+# A       242703  242703
+# A       242703  666510
+
+
+
+# get rid of old temporary db if it exists
+rm -f categories_dmp.sqlite3.temp
+
+# create the sqlite table and populate it with data 
+sqlite3 -batch categories_dmp.sqlite3.temp <<"EOF"
+
+CREATE TABLE categories_dmp (
+  kingdom text, 
+  species_taxid integer,
+  taxid integer primary key
+);
+
+.mode tabs
+
+-- populate table by importing processed nodes.dmp -> categories_dmp table
+.import categories.dmp categories_dmp
+
+EOF
+
+# overwrite working db with temp db ?
+mv categories_dmp.sqlite3.temp categories_dmp.sqlite3
+
+
+
+
