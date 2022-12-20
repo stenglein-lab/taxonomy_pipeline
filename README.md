@@ -33,7 +33,7 @@ Note that the pipeline looks for files with names that match the pattern `*_R[12
 
 #### Step 3. Setup host filtering
 
-The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
+The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
 
 To specify which bowtie2 index will be used for your datasets you should setup a file that maps dataset names to host genomes.  An [example of this file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This example contains two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
 
@@ -69,12 +69,12 @@ Now you actually need to run the pipeline.  An example command to run it:
 
 ```
 # assuming you are in the pipeline main directory (2022_3_analyis in the example above)
-nextflow run main.nf -resume -profile conda,local --host_map_file input/host_mapping.txt
+nextflow run main.nf -resume -profile singularity,local --host_map_file input/host_mapping.txt
 ```
 
 This assumes you are working on a server with nextflow and conda installed.  See the Dependencies below for more information on these dependencies.  
 
-Because the pipeline will likely run for a while (depending on dataset sizes), you will want to run it via a screen session.  See [this tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/master/docs/tutorial.md#section_screen) for more information on using screen.
+Because the pipeline will likely run for a while (depending on dataset sizes), you will want to run it via a screen session.  See [this tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_screen) for more information on using screen.
 
 ## Pipeline output 
 
@@ -145,13 +145,13 @@ The pipeline also uses custom R and perl scripts, which are located in the [scri
 
 This pipeline uses two databases for taxonomic classification:
 
-(1) The [NCBI nt nucleotide database](https://ftp.ncbi.nlm.nih.gov/blast/db/) for use in blastn searches.  
+(1) The [NCBI nt nucleotide database](https://ftp.ncbi.nlm.nih.gov/blast/db/) for use in blastn searches.  [This script](./scripts/download_and_process_sequence_databases) will download the NCBI nt BLAST database (and create the diamond database described next).
 
-(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.
+(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.  This is downloaded and created as part of [this script](./scripts/download_and_process_sequence_databases)
 
-(3) A local version of the [NCBI Taxonomy]() database.
+(3) A local version of the [NCBI Taxonomy](https://ftp.ncbi.nih.gov/pub/taxonomy/) database.  [This script](./scripts/download_and_process_taxonomy_databases) can be used to download and process the appropriate databases.  These databases are downloaded in plain-text format and converted into sqlite databases.
 
-These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  A script to download these databases from NCBI [is included](download_and_process_sequence_databases) in this repository.  These databases take up a lot of space, so before doing this make sure that these databases are not already downloaded.
+These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  These databases take up a lot of space, so before doing this make sure that these databases are not already available locally.
 
 #### Database locations
 
@@ -170,7 +170,8 @@ The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`
 
 ##### Taxonomy db
 
-TODO - fill out this section
+The NCBI taxonomy databases are expected to be in the directory `/home/databases/NCBI_Taxonomy/` as sqlite databases created by [this script](./scripts/download_and_process_taxonomy_databases).  Unfortunately, this path is currently hardcoded and I need to [fix this hardcoding issue](https://github.com/stenglein-lab/taxonomy_pipeline/issues/11).
+
 
 ## Assumptions about input data
 
