@@ -1,14 +1,3 @@
-### This directory contains files necessary to setup a server to run this pipeline
+### Conda environment for pipeline dependencies
 
-To setup a conda environment containing all of the dependencies necessary to run this pipeline, change to the directory containing these files and run:
-
-```
-./setup_environment.sh
-```
-
-If you'd like to update this conda environment with additional conda packages, add them to the .yaml file, change to the directory containing these files, and run:
-
-```
-conda env update --prefix=$HOME/taxonomy_conda_environment --file taxonomy_conda_environment.yaml
-```
-
+The yaml file in this directory defines a conda environment that includes the dependencies needed by this pipeline.  Nextflow will use this definition file to create an all-in-one conda environment that it will use to run the pipeline (if you execute nextflow run with `-profile conda`)
