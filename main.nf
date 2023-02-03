@@ -482,6 +482,7 @@ process host_filtering {
   output:
   tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_count_ch
   tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_ch
+  tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_remap_ch
 
   script:
 
@@ -858,9 +859,10 @@ process distribute_blastn_results {
 
   input:
   tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastn_distribute_ch
-
-  output:
-  tuple val(sample_id), path("*.fasta_*") optional true
+  tuple val(sample_id), path(input_fastq) from post_host_filter_remap_ch        
+                                                                                
+  output:                                                                       
+  tuple val(sample_id), path("*.fasta_*"), path(input_fastq) optional true into virus_fasta_ch
 
   script:
   // TODO: move distribute logic into an R script?
@@ -1020,5 +1022,48 @@ process distribute_blastx_results {
   """
   # pull out virus-derived reads - this will create a file for each viral taxon
   ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -v $contigs_and_singletons $blast_out
+  """
+}
+
+/*
+   remap host filtered reads to virus sequences
+*/
+process remap_reads_to_virus_seqs {
+  label 'lowmem_threaded'                                                                
+  publishDir "${params.host_filtered_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/bowtie2:2.4.5--py39ha4319a6_1"
+  } else {                                                                      
+      container "quay.io/biocontainers/bowtie2:2.4.5--py39ha4319a6_1"
+  }   
+
+  input:
+  tuple val(sample_id), path(virus_fasta), path(input_fastq) from virus_fasta_ch 
+
+  output:
+  tuple val(sample_id), path("*.sam") into virus_sam_ch 
+
+  script:
+  // handle single-end or paired-end inputs
+  def r1 = input_fastq[0] 
+  def r2 = input_fastq[1] ? input_fastq[1] : ""
+  def bowtie_file_input  = input_fastq[1] ? "-1 $r1 -2 $r2" : "-U $r1"
+
+  """
+  bowtie2-build $virus_fasta "${virus_fasta}_index"
+
+  bowtie2 \
+  -x "${virus_fasta}_index" \
+  --local \
+  -q \
+  --no-unal \
+  $bowtie_file_input \
+  --sensitive \
+  --score-min "C,${params.host_bt_min_score},0" \
+  -p ${task.cpus} \
+  -S "${sample_id}.${virus_fasta}.sam" \
+  2> "${sample_id}.host_filtering_bt.log" 
   """
 }
