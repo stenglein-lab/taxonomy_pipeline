@@ -859,10 +859,9 @@ process distribute_blastn_results {
 
   input:
   tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastn_distribute_ch
-  tuple val(sample_id), path(input_fastq) from post_host_filter_remap_ch        
                                                                                 
   output:                                                                       
-  tuple val(sample_id), path("*.fasta_*"), path(input_fastq) optional true into virus_fasta_ch
+  tuple val(sample_id), path("*.fasta_*") optional true into virus_fasta_ch
 
   script:
   // TODO: move distribute logic into an R script?
@@ -871,6 +870,18 @@ process distribute_blastn_results {
   ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -v $contigs_and_singletons $blast_out
   """
 }
+
+/* 
+ * We need to deal with the fact that each sample can produce multiple virus
+ * fasta files.  This will create a channel that passes sample ID, one fasta
+ * and the input fastq to the remap process below
+ * see: https://www.nextflow.io/docs/latest/process.html#input-repeaters-each
+ * and: https://www.nextflow.io/docs/latest/operator.html#operator-combine
+ * and: https://github.com/nextflow-io/nextflow/issues/440
+ */
+virus_remap_ch = virus_fasta_ch.transpose().combine(post_host_filter_remap_ch, by: 0)
+
+// virus_remap_ch.subscribe{ }
 
 /*
   This creates a new channel that merges all of the contigs and singletons
@@ -1026,11 +1037,44 @@ process distribute_blastx_results {
 }
 
 /*
+   filter out single reads assigned to virus sequences before remapping
+   since there is no point mapping reads to reads.
+*/
+process pull_out_virus_contigs {
+  label 'lowmem_non_threaded'                                                                
+  publishDir "${params.remapping_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
+  } else {                                                                      
+      container "quay.io/biocontainers/perl:5.26.2"
+  }   
+
+  input:
+  tuple val(sample_id), path(virus_fasta), path(input_fastq) from virus_remap_ch
+
+  output:
+  tuple val(sample_id), path("*.contigs.fasta"), path(input_fastq) into virus_contig_remap_ch
+
+  shell: 
+  '''
+  #!/usr/bin/env perl
+
+  # open fasta file with virus contigs and singleton reads
+  open (my $fh, "<", !{virus_fasta}) or die ("error: couldn't open file: !{virus_fasta}");
+
+  while (<$fh>)
+
+  
+  '''
+}
+/*
    remap host filtered reads to virus sequences
 */
 process remap_reads_to_virus_seqs {
   label 'lowmem_threaded'                                                                
-  publishDir "${params.host_filtered_out_dir}", mode:'link'
+  publishDir "${params.remapping_out_dir}", mode:'link'
 
   // singularity info for this process                                          
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -1040,10 +1084,10 @@ process remap_reads_to_virus_seqs {
   }   
 
   input:
-  tuple val(sample_id), path(virus_fasta), path(input_fastq) from virus_fasta_ch 
+  tuple val(sample_id), path(virus_fasta), path(input_fastq) from virus_remap_ch
 
   output:
-  tuple val(sample_id), path("*.sam") into virus_sam_ch 
+  tuple val(sample_id), path("*.sam") optional true into virus_sam_ch 
 
   script:
   // handle single-end or paired-end inputs
@@ -1052,10 +1096,10 @@ process remap_reads_to_virus_seqs {
   def bowtie_file_input  = input_fastq[1] ? "-1 $r1 -2 $r2" : "-U $r1"
 
   """
-  bowtie2-build $virus_fasta "${virus_fasta}_index"
+  bowtie2-build $virus_fasta index
 
   bowtie2 \
-  -x "${virus_fasta}_index" \
+  -x index \
   --local \
   -q \
   --no-unal \
@@ -1063,7 +1107,7 @@ process remap_reads_to_virus_seqs {
   --sensitive \
   --score-min "C,${params.host_bt_min_score},0" \
   -p ${task.cpus} \
-  -S "${sample_id}.${virus_fasta}.sam" \
+  -S "${virus_fasta}.sam" \
   2> "${sample_id}.host_filtering_bt.log" 
   """
 }
