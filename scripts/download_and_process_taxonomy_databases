@@ -1,24 +1,23 @@
 #!/bin/bash
   
-# this script downloads the NCBI Taxonomy database into the 
-# current working directory 
+# This script downloads NCBI Taxonomy database files
+# and dumps information into several SQLite databases 
+# 
+# Files are downloaded and dbs are created in current working directory 
 #
-# Mark Stenglein, 2014 updated: 1/13/2018
-
-# do this in case being called from a cron job
-# cd /home/databases/NCBI_Taxonomy
+# Mark Stenglein, 2014 updated: 3/27/2023
 
 ftp_url='ftp://ftp.ncbi.nih.gov/pub/taxonomy/'
-file_list=( gi_taxid.readme  taxcat.tar.gz taxcat.tar.gz.md5 taxcat_readme.txt taxdump.tar.gz taxdump.tar.gz.md5 taxdump_readme.txt accession2taxid/nucl_gb.accession2taxid.gz accession2taxid/prot.accession2taxid.gz)
-gzip_file_list=( gi_taxid_nucl.dmp.gz gi_taxid_nucl_diff.dmp.gz gi_taxid_prot.dmp.gz gi_taxid_prot_diff.dmp.gz taxcat.tar.gz taxdump.tar.gz nucl_gb.accession2taxid.gz prot.accession2taxid.gz)
-ungzip_file_list=( gi_taxid_nucl.dmp gi_taxid_nucl_diff.dmp gi_taxid_prot.dmp gi_taxid_prot_diff.dmp taxcat.tar taxdump.tar nucl_gb.accession2taxid prot.accession2taxid)
-tar_file_list=( taxcat.tar taxdump.tar )
+file_list=(taxcat.tar.gz taxcat.tar.gz.md5 taxcat_readme.txt taxdump.tar.gz taxdump.tar.gz.md5 taxdump_readme.txt accession2taxid/nucl_gb.accession2taxid.gz accession2taxid/prot.accession2taxid.gz)
+gzip_file_list=(taxcat.tar.gz taxdump.tar.gz nucl_gb.accession2taxid.gz prot.accession2taxid.gz)
+ungzip_file_list=(taxcat.tar taxdump.tar nucl_gb.accession2taxid prot.accession2taxid$)
+tar_file_list=(taxcat.tar taxdump.tar)
 
 
 # delete old files and download new versions 
 for f in ${file_list[@]}
 do
-   rm -f $f
+   rm -f `basename $f`
    echo downloading ${ftp_url}${f}
    wget -nv ${ftp_url}${f}
 done
@@ -44,16 +43,11 @@ do
    tar xvf ${f}
 done
 
-#  # now update MYSQL db
-#  echo "loading acc->taxid info into mysql database"
-#  date
-#   ./create_acc_taxid_mysql_table
-#  echo "done loading acc->taxid info into mysql database"
-
+# create several SQLite databases with NCBI taxonomy information
 echo "loading acc->taxid info into sqlite database"
 ./create_acc_taxid_sqlite_table
 ./create_categories_dmp_sqlite_table
 ./create_nodes_dmp_sqlite_table
-echo "done loading acc->taxid info into sqlite database"
+echo "done loading acc->taxid info into sqlite databases"
 date
 

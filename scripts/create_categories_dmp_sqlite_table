@@ -55,7 +55,7 @@ CREATE TABLE categories_dmp (
 
 EOF
 
-# overwrite working db with temp db ?
+# overwrite current db with temp db 
 mv categories_dmp.sqlite3.temp categories_dmp.sqlite3
 
 

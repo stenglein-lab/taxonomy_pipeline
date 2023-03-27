@@ -53,7 +53,7 @@ CREATE TABLE nodes_dmp (
 
 EOF
 
-# overwrite working db with temp db ?
+# overwrite current db with temp db 
 mv nodes_dmp.sqlite3.temp nodes_dmp.sqlite3
 
 

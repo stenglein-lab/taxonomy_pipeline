@@ -1,10 +1,10 @@
 #!/bin/bash -x
 
-# CREATE TABLE log_entry ( <snip> );
-# .separator "\t"
-# .import logfile.log log_entry
-# 
-# EOF
+# This script creates a SQLite3 database that maps 
+# NCBI nucleotide and protein sequence accessions to NCBI taxids
+
+# The data is imported from nucl_gb.accession2taxid and prot.accession2taxid 
+# files available at: https://ftp.ncbi.nih.gov/pub/taxonomy/accession2taxid/ 
 
 # get rid of old temporary db if it exists
 rm -f ncbi_taxonomy.sqlite3.temp
@@ -36,23 +36,5 @@ EOF
 
 # overwrite db with temp db
 mv ncbi_taxonomy.sqlite3.temp ncbi_taxonomy.sqlite3
-
-
-
-
-
-# .import nucl_gb.accession2taxid acc_taxid_map
-# .import prot.accession2taxid acc_taxid_map
-
-# CREATE TABLE `acc_taxid_map_temp` (
-   # `acc` CHAR(12), 
-   # `acc_ver` CHAR(15), 
-   # `taxid` INTEGER,
-   # `gi` INTEGER, 
-   # PRIMARY KEY (`acc`)
-# );
-
-# load data local infile '/home/databases/NCBI_Taxonomy/nucl_gb.accession2taxid' into table acc_taxid_map_temp IGNORE 1 LINES;
-# load data local infile '/home/databases/NCBI_Taxonomy/prot.accession2taxid' into table acc_taxid_map_temp IGNORE 1 LINES;
 
 
