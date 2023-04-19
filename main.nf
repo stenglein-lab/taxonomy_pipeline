@@ -653,7 +653,7 @@ process quantify_read_mapping_to_contigs {
   }   
 
   input:
-  tuple val(sample_id), path(contigs), path(input_fastq) from post_contigs_ch
+  tuple val(sample_id), path(contigs), path(input_fastq) from post_contigs_ch.filter{it.getAt(1).size() > 0}
 
   output:
   tuple val(sample_id), path("${sample_id}_contig_weights.txt"), path(contigs), path(contig_mapping_sam) into post_contigs_weight_ch
