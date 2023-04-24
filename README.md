@@ -183,6 +183,17 @@ The pipeline is provided with small test fastq files that can be used to test th
 nextflow run stenglein-lab/taxonomy_pipeline -profile test,singularity
 ```
 
+## Pipeline options
+
+A number of pipeline defaults are specified in [nextflow.config](./nextflow.config). These options can be [overridden in a variety of ways](https://www.nextflow.io/docs/latest/config.html).  Overridable options include:
+
+- `outdir`: the main output directory. Default: results.
+- `fastq_pattern`: the pattern to match for finding input fastq files.  Default: "*_R[12]*.fastq*"
+- Output sub-directories: there a number of these, for instance `contigs_out_dir` (default: $outdir/contigs), and they can all be overridden.
+- `minimum_contig_length`: the minimum contig length: contigs shorter than this will be discarded.  Default: 200 bases.
+- `classify_singletons`: should non-assembling reads (singletons) be taxonomically classified?  Default: no.
+- Resource allocation:  it's possible to specify the maximium available number of processers and memory. A good way to use this is to use a [custom profile](https://www.nextflow.io/docs/latest/config.html#config-profiles).  For example, see profile named local in [nextflow.config](./nextflow.config). 
+
 ## Tutorial
 
 There is [a tutorial](./docs/tutorial.md) that describes the main steps of this pipeline.  This tutorial refers to the older, pre-nextflow bash version of this pipeline, but the steps are similar and so the information in the tutorial remains applicable to understanding how the pipeline works in principle.
