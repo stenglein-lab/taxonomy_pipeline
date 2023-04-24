@@ -1,33 +1,38 @@
 ## Stenglein lab taxonomic assessment pipeline
 
-
 This is a nextflow implementation of the pipeline used in the [Stenglein lab](http://www.stengleinlab.org) to taxonomically classify sequences in NGS datasets.
 
 It is mainly designed to identify virus sequences in a metagenomic dataset but it also performs a general taxonomic classification of sequences.
 
-A [previous bash-based version of this pipeline](https://github.com/stenglein-lab/taxonomy_pipeline/releases/tag/2022_3_30_bash) has been reporpted in a number of [publications](https://www.stengleinlab.org/papers/) from our lab. 
+A [previous bash-based version of this pipeline](https://github.com/stenglein-lab/taxonomy_pipeline/releases/tag/2022_3_30_bash) has been reported in a number of [publications](https://www.stengleinlab.org/papers/) from our lab. 
 
 ## How to run the pipeline
 
-This pipeline is run using [nextflow]()
+This pipeline is implemented in [nextflow](https://www.nextflow.io) and [requires nextflow](#Dependencies) to be run.
+
+The pipeline requires several main inputs:
 
 1. [The path to the directory containing your fastq files (`--fastq_dir`)](#FASTQ_directory)
 2. [The path to a file defining how host filtering will be performed (`--host_map_file`)](#Host_filtering)
-3. [Whether you will use singularity or conda to provide required software tools (`-profile singularity` or `profile conda`).](#Other_software_dependencies)
+3. [Local copies of NCBI nucleotide and protein sequence databases](#Sequence_databases)
+4. [Singularity or conda to provide required software tools (`-profile singularity` or `profile conda`).](#Other_software_dependencies)
 
-Here's a basic example of a command line to run the pipeline.
+
+**Here's a simple example of a command line to run the pipeline:**
 
 ```
 nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt
 ```
+
+Nextflow will automatically download the pipeline code [from github](https://github.com/stenglein-lab/taxonomy_pipeline) and run using the provided parameter values. `-resume` will [resume pipeline execution](https://www.nextflow.io/docs/latest/cli.html#run) if it stopped for some reason (or if you, for instance, added additional fastq files to the fastq-containing directory).  `-profile singularity` tells nextflow to use Singularity to [handle software dependencies](#Other_software_dependencies).  `--fastq_dir` specifies the location of a [directory containing input fastq](#FASTQ_directory).  `--host_map_file` specifies the location of a file that defines [how host reads](#Host_filtering) should be filtered.
  
 #### FASTQ_directory
 
 You must provide the location of a directory containing fastq files using the `--fastq_dir` command line argument to nextflow as in the above example.   This directory need not be a sub-directory of the directory from which you are running the pipeline.  
 
-The fastq files should contain Illumina reads, but can be single or paired-end, or a mix, or gzip compressed (end in .gz) or not, or a mix of compressed and uncompressed.  It would be a best practice to keep your fastq files gzipped to take up less space on server storage.  
+The fastq files should contain Illumina reads, but can be single or paired-end, or a mix, or gzip compressed (end in .gz) or not, or a mix of compressed and uncompressed.  It is best practice to keep your fastq files gzipped to take up less storage space.
 
-Note that the pipeline looks for files with names that match the pattern `*_R[12]_*.fastq*`.  You can change this pattern using the argument `--fastq_pattern` as input to the nextflow command.  For instance:
+Note that the pipeline looks for files with names that match the pattern `*_R[12]_*.fastq*`.  You can change this pattern using the argument **`--fastq_pattern`** as input to the nextflow command.  For instance:
 
 ```
 nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt --fastq_pattern "*R1*.fastq*"
@@ -37,11 +42,11 @@ In this example, the pattern will match fastq files with R1 in their names, so w
 
 #### Host_filtering
 
-The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
+The pipeline optionally removes host-derived reads from datasets because generally host reads are not what we are interested in and removing these reads makes downstream taxonomic classification steps go **much** faster.  To perform host filtering, you will need one or more bowtie2 indexes of host reference genomes.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
 
-Host mapping is described in a file whose location is provided to the pipeline using the `--host_map_file` command line argument as in the above example.
+The location of bowtie2 indexes are provided in a file specified by the `--host_map_file` command line argument as in the above example.
 
-An [example of this host mapping file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This file contains two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
+An [example of this host mapping file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This file must contain two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
 
 ```
 # an example host filtering map file
@@ -52,7 +57,7 @@ Hela	/home/databases/human/GCRh38
 HeLa	/home/databases/human/GCRh38
 ```
 
-In this example, any datasets whose fastq file names contain the text `_M_` or `_F_` will be host-filtered using the bowtie2 index located at `/home/databases/fly/Dmel_genome_transcriptome` and any datasets whose fastq file names contain the text `Hela` or `HeLa` will be filtered using the GCRh38 human reference genome.  Note that bowtie2 indexes are actually made up of files and the paths listed in the example above are the *prefix* of all those files (they are the path that will be passed to the bowtie2 `-x` command line argument).
+In this example, any datasets whose fastq file names contain the text `_M_` or `_F_` will be host-filtered using the bowtie2 index located at `/home/databases/fly/Dmel_genome_transcriptome` and any datasets whose fastq file names contain the text `Hela` or `HeLa` will be filtered using the GCRh38 human reference genome.  Note that bowtie2 indexes are actually made up of 6 files and the paths listed in the example above are the prefix of all those files (this prefix is passed to the bowtie2 `-x` command line argument).
 
 ```
 # bowtie2 indexes are made up of 6 files 
@@ -65,7 +70,7 @@ $ ls /home/databases/human/GCRh38.*
 /home/databases/human/GCRh38.rev.2.bt2
 ```
 
-If you fail to specify a host mapping file the pipeline will warn you that no host filtering will be performed.  Note that you don't necessarily need to perform filtering: Any dataset whose fastq file name doesn't match one of the patterns in the host map file will not be host filtered.  
+If you fail to specify a host mapping file the pipeline will warn you that no host filtering will be performed.  Note that you don't necessarily need to perform filtering: Any dataset whose fastq file name doesn't match one of the patterns in the host map file will not be host filtered.  But beware that not host filtering when you can will cause the pipeline to run much more slowly than if you removed host reads.
 
 #### Running with screen
 
@@ -77,11 +82,11 @@ The pipeline puts output in a `results` directory.
 
 - Virus sequences: in the `results/virus_sequences` directory
 - Taxonomic tabulation: in the `tallies` directory.  These are tab-delimited tables of the taxa observed in each dataset, the # of mapping reads, average percent identity to database sequences, etc.
+- Host-filtered fastq: in the `host_filtered_fastq` directory.  This directory contains reads after quality and (optional) host-filtering.
 - Contigs: in the `contigs` directory.  Contigs from assembly of reads remaining after host filtering.
-- QC reports: `initial_qc_report.html` and `post_trim_qc_report.html
+- Remapping of reads to putative virus sequences: in the `virus_remapping` directory.  The pipeline automatically remaps host-filtered reads to putative virus contigs.  SAM files from this remapping are in this directory as well as files containing mapping stats.
+- QC reports: `initial_qc_report.html` and `post_trim_qc_report.html`
 - Plots of # and fraction reads remaining after filtering steps: `filtering_plots.pdf`
-
-TODO - flesh out this section
 
 ## Dependencies
 
@@ -135,7 +140,7 @@ You must specify either `-profile conda` or `-profile singularity` or the pipeli
 
 The pipeline also uses custom R and perl scripts, which are located in the [scripts](./scripts) directory of this repository.
 
-### Sequence database dependencies
+### Sequence_databases
 
 This pipeline uses two databases for taxonomic classification.  These must exist locally.
 
