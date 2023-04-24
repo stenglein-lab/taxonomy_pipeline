@@ -27,7 +27,7 @@ params.h = false
 Channel
   .fromFilePairs("${params.fastq_dir}/${params.fastq_pattern}", size: -1, checkIfExists: true, maxDepth: 1)
   // .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
-  .set {initial_fastq_ch}
+  .into {initial_fastq_subsample_ch; initial_fastq_ch}
 
 
 // define usage output message
@@ -204,7 +204,7 @@ process subsample_input {
   params.subsample_fraction
 
   input:
-  tuple val (sample_id), path(input_fastq) from initial_fastq_ch
+  tuple val (sample_id), path(input_fastq) from initial_fastq_subsample_ch
 
   output:
   tuple val (sample_id), path("*.ss.fastq*") into subsampled_fastq_ch
@@ -222,6 +222,9 @@ process subsample_input {
   """
 }
 
+/*
+ Fork fastq input channel
+ */
 if (params.subsample_fraction) {
   subsampled_fastq_ch.into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
 } else {
