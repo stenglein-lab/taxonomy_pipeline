@@ -1,4 +1,5 @@
-_M_	/home/databases/fly/Dmel_genome_transcriptome
-_F_	/home/databases/fly/Dmel_genome_transcriptome
+FoCo	/home/databases/fly/Dmel_genome_transcriptome
+Hydei	/home/databases/fly/hydei_genome
 Hela	/home/databases/human/GCRh38
 HeLa	/home/databases/human/GCRh38
+hela	/home/databases/human/GCRh38

@@ -1,0 +1,172 @@
+#!/bin/bash
+  
+# This script dumps information from NCBI Taxonomy database files
+# into several SQLite database tables 
+# 
+# Mark Stenglein, 2014 updated: 3/27/2023
+
+db_dir=$1
+db_name=$2
+
+# cd to the directory containing the .dmp files 
+# cd $db_dir
+
+# CATEGORIES.DMP
+# This creates a sqlite database from the NCBI Taxonomy database's categories.dmp file
+# 
+# According to this document: ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxcat_readme.txt
+#
+# The taxcat dump contains a single file -
+# 
+#   categories.dmp
+# 
+# categories.dmp contains a single line for each node
+# that is at or below the species level in the NCBI 
+# taxonomy database.
+# 
+# The first column is the top-level category -
+# 
+#   A = Archaea
+#   B = Bacteria
+#   E = Eukaryota
+#   V = Viruses and Viroids
+#   U = Unclassified and Other
+# 
+# The third column is the taxid itself,
+# and the second column is the corresponding
+# species-level taxid.
+# 
+# These nodes in the taxonomy -
+# 
+#   242703 - Acidilobus saccharovorans
+#   666510 - Acidilobus saccharovorans 345-15 
+# 
+# will appear in categories.dmp as -
+# 
+# A       242703  242703
+# A       242703  666510
+
+# create the sqlite table and populate it with data 
+sqlite3 -batch $db_name  <<EOF
+
+DROP TABLE IF EXISTS categories_dmp;
+
+CREATE TABLE categories_dmp (
+  kingdom text, 
+  species_taxid integer,
+  taxid integer primary key
+);
+
+.mode tabs
+
+-- populate table by importing processed nodes.dmp -> categories_dmp table
+.import ${db_dir}/categories.dmp categories_dmp
+
+EOF
+
+
+# ---------
+# NODES.DMP
+# ---------
+
+# This script creates a sqlite database from the NCBI Taxonomy database's nodes.dmp file
+# 
+# According to this document: ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_readme.txt
+#
+# nodes.dmp consists of the following fields, separated by "|" characters
+#
+#     nodes.dmp
+#     ---------
+#     
+#     This file represents taxonomy nodes. The description for each node includes 
+#     the following fields:
+#     
+#     	tax_id					-- node id in GenBank taxonomy database
+#      	parent tax_id				-- parent node id in GenBank taxonomy database
+#      	rank					-- rank of this node (superkingdom, kingdom, ...) 
+#      	embl code				-- locus-name prefix; not unique
+#      	division id				-- see division.dmp file
+#      	inherited div flag  (1 or 0)		-- 1 if node inherits division from parent
+#      	genetic code id				-- see gencode.dmp file
+#      	inherited GC  flag  (1 or 0)		-- 1 if node inherits genetic code from parent
+#      	mitochondrial genetic code id		-- see gencode.dmp file
+#      	inherited MGC flag  (1 or 0)		-- 1 if node inherits mitochondrial gencode from parent
+#      	GenBank hidden flag (1 or 0)            -- 1 if name is suppressed in GenBank entry lineage
+#      	hidden subtree root flag (1 or 0)       -- 1 if this subtree has no sequence data yet
+#      	comments				-- free-text comments and citations
+# 
+#  
+
+# we really only care about the first 3 columns of data so don't import the rest for now.
+# First, extract those 3 columns and convert | to tabs 
+# this code moved to nextflow
+# rm -f nodes.col_1_to_3.dmp
+# cat nodes.dmp | perl -p -e 's/\t\|\t/\t/g' | cut -f 1-3 > nodes.col_1_to_3.dmp
+
+# create the sqlite table and populate it with data from 
+sqlite3 -batch $db_name <<EOF2
+
+DROP TABLE IF EXISTS nodes_dmp;
+
+CREATE TABLE nodes_dmp (
+  taxid integer primary key,
+  parent_taxid integer,
+  rank text
+);
+
+.mode tabs
+
+-- populate table by importing processed nodes.dmp -> nodes_dmp table
+.import ${db_dir}/nodes.col_1_to_3.dmp nodes_dmp
+
+EOF2
+
+# remove no-longer needed intermediate file
+# rm -f nodes.dmp.col_1_to_3.tsv
+
+# ----------
+# NAMES.DMP
+# ----------
+
+# This creates a sqlite database from the NCBI Taxonomy database's names.dmp file
+# 
+# According to this document: ftp://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_readme.txt
+#
+# names.dmp consists of the following fields, separated by "|" characters
+#     names.dmp
+#     ---------
+#     Taxonomy names file has these fields:
+#     
+        #     tax_id                                  -- the id of node associated with this name
+        #     name_txt                                -- name itself
+        #     unique name                             -- the unique variant of this name if name not unique
+        #     name class                              -- (synonym, common name, ...)
+
+
+# extract those 3 columns and convert silly <tab>|<tab> delimiters to tabs 
+# and get rid of trailing <tab>| at end of line
+# rm -f names.tsv.dmp
+# cat names.dmp | perl -p -e 's/\t\|\t/\t/g' | perl -p -e 's/\t\|//' > names.tsv.dmp
+
+# create the sqlite table and populate it with data from the tsv file
+sqlite3 -batch $db_name <<EOF3
+
+DROP TABLE IF EXISTS names_dmp;
+
+CREATE TABLE names_dmp (
+  taxid integer,
+  name_text text,
+  unique_name text,
+  name_class text,
+  primary key (taxid, name_class)
+);
+
+.mode ascii
+.separator "\t" "\n"
+
+-- populate table by importing processed names.dmp -> names_dmp table
+.import ${db_dir}/names.sci_com.dmp names_dmp
+
+EOF3
+
+

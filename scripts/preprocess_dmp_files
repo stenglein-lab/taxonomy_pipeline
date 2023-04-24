@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+dmp_dir=$1
+new_dmp_dir=$2
+script_dir=$3
+
+# change to the directory with the .dmp files
+# cd $dmp_dir
+
+# first deal with nodes.dmp                                                 
+# we really only care about the first 3 columns of data so don't import the rest for now.
+# First, extract those 3 columns and convert | to tabs                      
+cat $dmp_dir/nodes.dmp | perl -p -e 's/\t\|\t/\t/g' | cut -f 1-3 > $new_dmp_dir/nodes.col_1_to_3.dmp
+                                                                            
+# now deal with names.dmp                                                   
+# first, let's pull out scientific names
+# extract columns and convert <tab>|<tab> delimiters to single tabs         
+# and get rid of trailing <tab>| at end of line                             
+cat $dmp_dir/names.dmp | perl -p -e 's/\t\|\t/\t/g' | perl -p -e 's/\t\|//' > names.tsv.dmp
+
+# pull out first common name and scientific names
+${script_dir}/pull_out_scientific_and_common_names < names.tsv.dmp > $new_dmp_dir/names.sci_com.dmp
+
+# copy categories.dmp in new dir
+cp $dmp_dir/categories.dmp $new_dmp_dir/categories.dmp
+
+# get rid of intermediate file
+# rm -f names.tsv.dmp                                                         
+
+

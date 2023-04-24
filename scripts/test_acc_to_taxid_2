@@ -1,0 +1,56 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+use Data::Dumper;
+
+# allow use of modules in pwd
+use Cwd 'abs_path';
+use File::Basename;
+use lib dirname( abs_path $0 );
+
+use acc_to_taxid;
+
+my $print_usage = 0;
+
+my $db_path = "/home/databases/NCBI_Taxonomy/accession2taxid.sqlite3";
+
+my $usage = <<USAGE;
+
+  This script tests mapping of NCBI accessions to taxids
+
+  Input  (stdin) : a space-separated list of NCBI accessions
+  Output (stdout): a space-separated list of NCBI corresponding taxids 
+
+  This mapping is accomplished via a SQLite database containing a map
+  of NCBI accessions->taxids.
+
+  This database is created using:
+  https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/scripts/download_and_process_taxonomy_databases 
+
+  The location of this database can be specified using the -db command-line option.
+
+  Mark Stenglein,  3/27/2023
+
+  Usage: $0 [-h] [-db db_path] accession1 accession2 ... accessionN
+
+   [-h]          Print this message
+
+   [-db db_path] The path to a SQlite database containing acc->taxid mapping
+                 (default: $db_path)
+
+USAGE
+
+if (! -e $db_path)
+{
+  die("ERROR: db_path: $db_path does not exist.\n");
+}
+
+
+my @accessions = qw (JQ717263 JQ717264 JQ717265.1);
+my $taxids = acc_to_taxid($db_path, @accessions);
+print Dumper($taxids);
+
+@accessions = qw (JQ717266 JQ717267 JQ717268.1 abcdef);
+my $taxids = acc_to_taxid($db_path, @accessions);
+print Dumper($taxids);

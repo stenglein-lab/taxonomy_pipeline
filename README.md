@@ -9,33 +9,45 @@ A [previous bash-based version of this pipeline](https://github.com/stenglein-la
 
 ## How to run the pipeline
 
+This pipeline is run using [nextflow]()
 
-#### Step 1. Clone the repository:
+1. [The path to the directory containing your fastq files (`--fastq_dir`)](#Fastq directory)
+2. [The path to a file defining how host filtering will be performed (`--host_map_file`)](#Host filtering)
+3. [Whether you will use singularity or conda to provide required software tools (`-profile singularity` or `profile conda`).](#Dependencies)
 
-First you need to get the pipeline code.  You do this using git:
+Here's a basic example of a command line to run the pipeline.
+
 ```
-git clone https://github.com/stenglein-lab/taxonomy_pipeline.git 2022_3_analysis
+nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --host_map_file host_mapping.txt --fastq_dir /path/to/directory/containing/fastq/
 ```
-This will download a copy of the pipeline files and put them in the directory `2022_3_analysis` but this is just an example name: you can name the directory anything you want. 
  
-#### Step 2. Move your fastq files to the new directory 
+#### Fastq directory
 
-The pipeline expects your fastq files to be in a subdirectory named input/fastq.  The next step will be to move your fastq files there.
+You will need to provide the location of a directory containing fastq files using the `--fastq_dir` command line argument to nextflow.   These need not be in the same directory as you are running the pipeline.  For instance:
 
 ```
-# transfer fastq files from an example location to the pipeline directory
-mv /home/mdstengl/raw_data/*.fastq.gz 2022_3_analysis/input/fastq
+nextflow run stenglein-lab/taxonomy_pipeline --fastq_dir /path/to/fastq/containing/directory/ --host_map_file /path/to/host_map_file.txt
 ```
 
-The fastq files should contain Illumina reads, but can be single or paired-end, or a mix, or cogzip compressed (end in .gz) or not, or a mix of compressed and uncompressed.  It would be a best practice to keep your fastq files gzipped to take up less space on server storage.  
+The fastq files should contain Illumina reads, but can be single or paired-end, or a mix, or gzip compressed (end in .gz) or not, or a mix of compressed and uncompressed.  It would be a best practice to keep your fastq files gzipped to take up less space on server storage.  
 
-Note that the pipeline looks for files with names that match the pattern `*_R[12]_*.fastq*`.  You can change this pattern using the argument `--fastq_pattern` as input to the nextflow command.
+Note that the pipeline looks for files with names that match the pattern `*_R[12]_*.fastq*`.  You can change this pattern using the argument `--fastq_pattern` as input to the nextflow command.  For instance:
 
-#### Step 3. Setup host filtering
+```
+nextflow run stenglein-lab/taxonomy_pipeline --fastq_dir /path/to/fastq/containing/directory/ --fastq_pattern "*_R1*fastq.gz"
+```
 
-The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome on the same server as you are running the pipeline.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
+The above pattern will match fastq files with R1 in their names, so would only use single-end data even if R2 files were present.
 
-To specify which bowtie2 index will be used for your datasets you should setup a file that maps dataset names to host genomes.  An [example of this file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This example contains two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
+#### Step 2. Setup host filtering
+
+The pipeline optionally removes host-derived reads because generally they are not what we are interested in and removing these reads makes downstream taxonomic classification steps go faster.  To perform host filtering, you will need a bowtie2 index of a host reference genome.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
+
+Host mapping is described in a file whose location is provided to the pipeline using the `--host_map_file` command line argument.  For instance:  
+
+nextflow run stenglein-lab/taxonomy_pipeline --fastq_dir /path/to/fastq/containing/directory/ --host_map_file /path/to/host_map_file.txt
+
+An [example of this file is here](map://github.com/stenglein-lab/taxonomy_pipeline/blob/nextflow/input/host_mapping.txt).  This file contains two columns separated by a tab.  The first column contains a pattern that will be searched for in fastq file names.  The second columns contains the location of a bowtie2 index.
 
 ```
 # view an example host filtering map file
@@ -46,7 +58,7 @@ Hela	/home/databases/human/GCRh38
 HeLa	/home/databases/human/GCRh38
 ```
 
-In this example, any datasets whose fastq file names contain the text `_M_` or `_F_` will be host-filtered using the bowtie2 index located at `/home/databases/fly/Dmel_genome_transcriptome` and any datasets whose fastq file names contain the text `Hela` or `HeLa` will be filtered using the GCRh38 human reference genome.  Note that bowtie2 indexes are actually made up of files and the paths listed in the example above are the prefix of all those files (they are the path that will be passed to the bowtie2 `-x` command line argument).
+In this example, any datasets whose fastq file names contain the text `_M_` or `_F_` will be host-filtered using the bowtie2 index located at `/home/databases/fly/Dmel_genome_transcriptome` and any datasets whose fastq file names contain the text `Hela` or `HeLa` will be filtered using the GCRh38 human reference genome.  Note that bowtie2 indexes are actually made up of files and the paths listed in the example above are the *prefix* of all those files (they are the path that will be passed to the bowtie2 `-x` command line argument).
 
 ```
 # bowtie2 indexes are made up of 6 files 
@@ -59,17 +71,15 @@ $ ls /home/databases/human/GCRh38.*
 /home/databases/human/GCRh38.rev.2.bt2
 ```
 
-You will need to setup this host_mapping file to specify which host reference genomes (bowtie2 indexes) should be used to remove host reads from your datasets.  You can edit the provided `input/host_mapping.txt` file or you can create a new file and specify its location using the `--host_map_file` command line argument when you run nextflow.
+If you fail to specify a host mapping file the pipeline will warn you that no host filtering will be performed.  Note that you don't necessarily need to perform filtering: Any dataset whose fastq file name doesn't match one of the patterns in the host map file will not be host filtered.
 
-If you fail to specify a host mapping file the pipeline will warn you that no host filtering will be performed.  If you do specify host filtering, you don't necessarily need to perform filtering for all datasets: Any dataset whose fastq file name doesn't match one of the patterns in the host map file will not be host filtered.
-
-#### Step 4. Actually run the pipeline
+#### Step 3. Actually run the pipeline
 
 Now you actually need to run the pipeline.  An example command to run it:
 
 ```
 # assuming you are in the pipeline main directory (2022_3_analyis in the example above)
-nextflow run main.nf -resume -profile singularity,local --host_map_file input/host_mapping.txt
+nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity,local --host_map_file input/host_mapping.txt
 ```
 
 This assumes you are working on a server with nextflow and conda installed.  See the Dependencies below for more information on these dependencies.  
@@ -100,7 +110,7 @@ nextflow -version
 
 ### Other software dependencies
 
-This pipeline deals with other software dependencies in 2 possible ways: by using Singularity containers or by using an all-in-one conda environment.  You are free to use either one of these when running the pipeline.
+This pipeline deals with other software dependencies in 2 possible ways: by using Singularity containers or by using an all-in-one conda environment.  You are free to use either one of these when running the pipeline, but singularity is preferred over conda.
 
 #### Singularity containers
 
@@ -113,7 +123,7 @@ singularity --version
 To run with singularity containers include the option `-profile singularity` in the nextflow command line, for instance:
 
 ```
-nextflow run main.nf -profile singularity
+nextflow run stenglein-lab/taxonomy_pipeline -profile singularity
 ```
 
 Singularity containers will be automatically downloaded and stored in a directory named `singularity_cacheDir` in your home directory.  They will only be downloaded once. 
@@ -129,27 +139,25 @@ conda -V
 The conda environment is defined in [this yaml file](./conda/taxonomy_conda_environment.yaml) and will be automatically created if you run the pipeline using the conda profile.  To run the pipeline with conda, include `-profile conda` in the nextflow command line, for instance:
 
 ```
-nextflow run main.nf -profile conda
+nextflow run stenglein-lab/taxonomy_pipeline -profile conda
 ```
 
 The conda environment will be created in a directory in your home directory named `conda_cacheDir` and will only be created once.
 
-You should specify either `-profile conda` or `-profile singularity` or the pipeline will output an error message and halt.
+You must specify either `-profile conda` or `-profile singularity` or the pipeline will output an error message and halt.
 
 #### Custom scripts
 
 The pipeline also uses custom R and perl scripts, which are located in the [scripts](./scripts) directory of this repository.
 
 
-### Database dependencies
+### Sequence database dependencies
 
 This pipeline uses two databases for taxonomic classification:
 
 (1) The [NCBI nt nucleotide database](https://ftp.ncbi.nlm.nih.gov/blast/db/) for use in blastn searches.  [This script](./scripts/download_and_process_sequence_databases) will download the NCBI nt BLAST database (and create the diamond database described next).
 
-(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.  This is downloaded and created as part of [this script](./scripts/download_and_process_sequence_databases)
-
-(3) A local version of the [NCBI Taxonomy](https://ftp.ncbi.nih.gov/pub/taxonomy/) database.  [This script](./scripts/download_and_process_taxonomy_databases) can be used to download and process the appropriate databases.  These databases are downloaded in plain-text format and converted into sqlite databases.
+(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.  This is downloaded and created as part of [this same script](./scripts/download_and_process_sequence_databases)
 
 These databases need to be installed locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  These databases take up a lot of space, so before doing this make sure that these databases are not already available locally.
 
@@ -160,7 +168,7 @@ These databases need to be installed locally on a computer or server to run this
 The default location of the blast nt databases is: `/home/databases/nr_nt/nt`. This value will be passed to the -db option when running blastn. This default value can be overridden using the `--nt_blast_db` parameter, for instance:
 
 ```
-nextflow run main.nf -profile conda --nt_blast_db /path/to/my/local/db/nt
+nextflow run stenglein-lab/taxonomy_pipeline -profile singularity --nt_blast_db /path/to/my/local/db/nt
 ```
 In this example, there should be a file named `/path/to/my/local/db/nt.nal` in addition to the other nt database files.
 
@@ -170,8 +178,7 @@ The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`
 
 ##### Taxonomy db
 
-The NCBI taxonomy databases are expected to be in the directory `/home/databases/NCBI_Taxonomy/` as sqlite databases created by [this script](./scripts/download_and_process_taxonomy_databases).  Unfortunately, this path is currently hardcoded and I need to [fix this hardcoding issue](https://github.com/stenglein-lab/taxonomy_pipeline/issues/11).
-
+The NCBI taxonomy databases are downloaded automatically as part of the pipeline and stored in the work directory created by nextflow.  These files use ~1.5 Gb of disk storage.
 
 ## Assumptions about input data
 
@@ -179,7 +186,11 @@ The NCBI taxonomy databases are expected to be in the directory `/home/databases
 
 ## Testing
 
-TODO - fill out this section
+The pipeline is provided with small test fastq files that can be used to test that the pipeline is working properly.  To run these test datasets, run with `profile test`, for instance:
+
+```
+nextflow run stenglein-lab/taxonomy_pipeline -profile test,singularity
+```
 
 ## Tutorial
 

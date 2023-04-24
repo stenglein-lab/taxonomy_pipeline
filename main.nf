@@ -26,7 +26,8 @@ params.h = false
 */
 Channel
   .fromFilePairs("${params.fastq_dir}/${params.fastq_pattern}", size: -1, checkIfExists: true, maxDepth: 1)
-  .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
+  // .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
+  .set {initial_fastq_ch}
 
 
 // define usage output message
@@ -185,6 +186,48 @@ check_params()
 // setup indexes for host filtering
 setup_host_indexes()
 
+/*
+   Setup some initial indexes and dictionaries needed by downstream processes.
+   Only do this once at beginning.
+*/
+process subsample_input {
+  label 'lowmem'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/seqtk:1.3--h5bf99c6_3"
+  } else {                                                                      
+      container "quay.io/biocontainers/seqtk:1.3--h5bf99c6_3"
+  }   
+
+  when: 
+  params.subsample_fraction
+
+  input:
+  tuple val (sample_id), path(input_fastq) from initial_fastq_ch
+
+  output:
+  tuple val (sample_id), path("*.ss.fastq*") into subsampled_fastq_ch
+
+  script:
+  def r1 = input_fastq[0]
+  def r1_ss = r1.name.replaceAll("fastq", "ss.fastq")
+  def r2 = input_fastq[1] 
+  def r2_ss = input_fastq[1] ? r2.name.replaceAll("fastq", "ss.fastq") : ""
+  def r1_command = "seqtk sample $r1 ${params.subsample_fraction} | gzip > $r1_ss" 
+  def r2_command = input_fastq[1] ? "seqtk sample $r2 ${params.subsample_fraction} | gzip > $r2_ss" : ""
+  """
+  $r1_command
+  $r2_command
+  """
+}
+
+if (params.subsample_fraction) {
+  subsampled_fastq_ch.into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
+} else {
+  initial_fastq_ch.into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
+}
+
 
 /*
    Setup some initial indexes and dictionaries needed by downstream processes.
@@ -218,13 +261,12 @@ process initial_qc {
   tuple val(sample_id), path(initial_fastq) from samples_ch_qc
 
   output:
-  val(sample_id) into post_initial_qc_ch
-  // TODO: count
+  // path("*.html") into initial_qc_fastqc_html_ch
+  path("*.zip") into initial_qc_fastqc_zip_ch
 
   script:
   """
-  mkdir -p  ${params.initial_fastqc_dir} 
-  fastqc -o ${params.initial_fastqc_dir} $initial_fastq 
+  fastqc $initial_fastq
   """
 }
 
@@ -266,14 +308,14 @@ process initial_multiqc {
   }   
 
   input:
-  val(all_sample_ids) from post_initial_qc_ch.collect()
+  path("fastqc_zips/*") from initial_qc_fastqc_zip_ch.collect()
 
   output: 
   path("initial_qc_report.html")
 
   script:
   """
-  multiqc -n "initial_qc_report.html" -m fastqc ${params.initial_fastqc_dir}
+  multiqc -n "initial_qc_report.html" -m fastqc fastqc_zips
   """
 }
 
@@ -428,13 +470,13 @@ process post_collapse_qc {
   tuple val(sample_id), path(input_fastq) from post_collapse_qc_ch
 
   output:
-  val(sample_id) into post_collapse_multiqc_ch
+  // path("*.html") into post_trim_fastqc_html_ch
+  path("*.zip") into post_trim_fastqc_zip_ch
 
   script:
 
   """
-  mkdir -p  ${params.post_trim_fastqc_dir} 
-  fastqc -o ${params.post_trim_fastqc_dir} $input_fastq
+  fastqc $input_fastq
   """
 }
 
@@ -452,13 +494,13 @@ process post_preprocess_multiqc {
   }   
 
   input:
-  val(all_sample_ids) from post_collapse_multiqc_ch.collect()
+  path("fastqc_zips/*") from post_trim_fastqc_zip_ch.collect()
 
   output:
   path("post_trim_qc_report.html")
 
   """
-  multiqc -n "post_trim_qc_report.html" -m fastqc -m cutadapt ${params.post_trim_fastqc_dir}
+  multiqc -n "post_trim_qc_report.html" -m fastqc -m cutadapt fastqc_zips
   """
 }
 
@@ -480,9 +522,10 @@ process host_filtering {
   tuple val(sample_id), path(input_fastq) from host_filtering_ch
 
   output:
-  tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_count_ch
   tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_ch
+  tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_count_ch
   tuple val(sample_id), path("*_fuh.fastq") optional true into post_host_filter_remap_ch
+
 
   script:
 
@@ -683,10 +726,10 @@ process merge_contigs_and_singletons {
 
   // singularity info for this process                                          
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-      container "https://depot.galaxyproject.org/singularity/samtools:1.14--hb421002_0"
+      container "https://depot.galaxyproject.org/singularity/samtools:1.17--h00cdaf9_0"
   } else {                                                                      
-      container "quay.io/biocontainers/samtools:1.14--hb421002_0"
-  }   
+      container "quay.io/biocontainers/samtools:1.17--h00cdaf9_0"
+  }     
 
   input:
   tuple val(sample_id), path(contig_weights), path(contigs), path(contig_mapping_sam) from post_contigs_weight_ch
@@ -716,6 +759,324 @@ process merge_contigs_and_singletons {
 }
 
 /*
+  Create a channel containing the path to the directory containing a local copy of the blast nt
+  database.  This is so that this directory can be staged (by link) in the work directory.
+ */
+blast_db_ch   = Channel.fromPath( params.local_nt_database_dir, type: 'dir', checkIfExists: true)
+
+/*
+  This process confirms that the local NT database is valid 
+ */
+
+process check_local_blast_database {
+  label 'process_low'
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/blast:2.12.0--pl5262h3289130_0"
+  } else {
+      container "quay.io/biocontainers/blast:2.12.0--pl5262h3289130_0"
+  }
+
+  input:
+  path(local_nt_database_dir) from blast_db_ch
+
+  output:
+  // tuple path("${local_nt_database_dir}"), val("${params.local_nt_database_name}") into post_blast_db_check_ch
+  path(local_nt_database_dir) into post_blast_db_check_ch
+
+
+  script:                                                                       
+  def local_nt_database = "${local_nt_database_dir}/${params.local_nt_database_name}"
+
+  """
+  # check BLAST database
+  # check for expected .nal file: if not present, output a helpful warning message
+  if [ ! -f "${local_nt_database}.nal" ]                                 
+  then                                                                          
+    echo "ERROR: it does not appear that ${local_nt_database} is a valid BLAST database."
+  fi   
+  
+  # check validity of database with blastdbcmd.  If not valid, this will error 
+  # and stop pipeline.
+  blastdbcmd -db ${local_nt_database} -info 
+
+  """
+}
+
+/*
+  Create a channel containing the path to the directory containing a local copy of the diamond
+  database.  This is so that this directory can be staged (by link) in the work directory.
+ */
+diamond_db_ch = Channel.fromPath( params.local_diamond_database_dir, type: 'dir', checkIfExists: true)
+
+/*
+  This process confirms that the local diamond database is valid 
+ */
+
+process check_local_diamond_database {
+  label 'process_low'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/diamond:2.0.14--hdcc8f71_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/diamond:2.0.14--hdcc8f71_0"
+  }                                                                             
+
+  input:
+  path(local_diamond_database_dir) from diamond_db_ch
+
+  output:
+  path(local_diamond_database_dir) into post_diamond_db_check_ch
+
+  script:                                                                       
+  def local_dmd_database = "${local_diamond_database_dir}/${params.local_diamond_database_name}"
+
+  """
+  # check Diamond database
+  # check for expected file: if not present, output a helpful warning message
+  if [ ! -f "${local_dmd_database}" ]                                 
+  then                                                                          
+    echo "ERROR: it does not appear that Diamond database ${local_dmd_database} exists."
+  fi   
+  
+  # check validity of database with diamond dbinfo.  If not valid, this will error 
+  # and stop pipeline.
+  diamond dbinfo --db ${local_dmd_database}
+  """
+}
+
+/*
+  Create a channel containing the path to an (optional) local copy of the 
+  NCBI taxonomy databases
+ */
+ncbi_tax_ch = Channel.empty()
+
+// if this path was provided as a parameter, then create a channel
+// from this path and set a boolean to true to indicate it's an existing
+// directory
+if (params.ncbi_tax_dir) {
+   ncbi_tax_ch = Channel.fromPath( params.ncbi_tax_dir )
+                         .map { path -> [ path , true ] }  
+} else {
+   // if this path was *not* provided as a parameter, then create a channel
+   // from a bogus path "ncbi_tax_dir" and set a boolean to false 
+   // to indicate it *doesn't* refer to an existing directory
+   ncbi_tax_ch = Channel.fromPath( "ncbi_tax_dir" )
+                         .map { path -> [ path , false ] }  
+}
+
+/* 
+  Download NCBI Taxonomy database files if necessary
+ */
+process download_ncbi_taxonomy_if_necessary {
+  label 'process_low'
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/curl:7.80.0"
+  } else {
+      container "quay.io/biocontainers/curl:7.80.0"
+  }
+
+  input:
+  tuple path(ncbi_tax_dir), val(existing_db) from ncbi_tax_ch
+
+  output:
+  tuple path (ncbi_tax_dir), val(existing_db) into post_ncbi_tax_download_ch
+
+  script:
+  // if a local directory containing the ncbi taxonomy database  is specified, 
+  // check that it exists and contains the expected sqlite db file
+  existing_db ? 
+  """
+    # check that the directory exists
+    if [ ! -d "${ncbi_tax_dir}" ] ; then
+      echo "ERROR: BLAST taxonomy directory ${ncbi_tax_dir} (--ncbi_tax_dir) does not exist."
+      exit 1
+    fi 
+    # check that appropriate files exist
+    if [ ! -f "${ncbi_tax_dir}/${params.ncbi_tax_db}" ] ; then
+      echo "ERROR: required NCBI taxonomy database file ${params.ncbi_tax_db} (--ncbi_tax_db) not in directory ${ncbi_tax_dir} (--ncbi_tax_dir)."
+      exit 1
+    fi 
+  """ :
+  // if tax db doesn't already exist : download the necessary files and keep track of directory 
+  // log.info("Downloading the NCBI Taxonomy database files.")
+  """
+     rm $ncbi_tax_dir
+     mkdir $ncbi_tax_dir
+     ${params.scripts_bindir}/download_taxonomy_databases 
+     mv *.dmp $ncbi_tax_dir
+  """
+}
+
+/* 
+  Pre-process NCBI Taxonomy database files 
+ */
+process preprocess_ncbi_taxonomy_files {
+  label 'process_low'
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
+  } else {
+      container "quay.io/biocontainers/perl:5.26.2"
+  }
+
+  input:
+  tuple path (ncbi_tax_dir), val(existing_db) from post_ncbi_tax_download_ch
+
+  output:
+  tuple path ("prepped_ncbi_tax_dir"), val(existing_db) into post_ncbi_tax_prep_ch
+
+  script:
+  existing_db ? 
+  // if the path to a local copy of the ncbi taxonomy database is specified, simply link to the directory
+  """
+     echo "nothing to do"   
+     ln -s $ncbi_tax_dir prepped_ncbi_tax_dir
+  """ :
+  // deal with the newly downloaded *.dmp files 
+  // pull out the info we need: this will be dumped into a sqlite db in the
+  // next downstream process
+  """
+     rm -rf prepped_ncbi_tax_dir
+     mkdir -p prepped_ncbi_tax_dir
+     ${params.scripts_bindir}/preprocess_dmp_files $ncbi_tax_dir prepped_ncbi_tax_dir ${params.scripts_bindir}
+  """
+}
+
+/* 
+  Setup NCBI Taxonomy databases: use existing installation if available
+  or download and create new one
+ */
+process create_ncbi_tax_sqlite_db {
+  label 'process_low'
+  publishDir "${params.tax_db_out_dir}", mode:'link', pattern:"*.sqlite3"
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/sqlite:3.33.0"
+  } else {
+      container "quay.io/biocontainers/sqlite:3.33.0"
+  }
+
+  input:
+  tuple path (ncbi_tax_dir), val(existing_db) from post_ncbi_tax_prep_ch
+
+  output:
+  path ("${params.ncbi_tax_db}") into post_ncbi_tax_check_ch
+
+  script:
+  // if a local blast_tax_dir is specified, check that it contains the expected files
+  // and that these are valid SQLite databases
+  existing_db ? 
+  """
+    # validate that a SQLite database is minimally valid
+    # see: https://stackoverflow.com/questions/3888529/how-to-tell-if-sqlite-database-file-is-valid-or-not
+    # This sqlite3 command will exit with 0 status (success) if everything looks OK
+    # and will exit with non-zero exit status otherwise
+    sqlite3 -batch ${ncbi_tax_dir}/${params.ncbi_tax_db} <<"EOF"
+    pragma schema_version;
+    EOF
+
+    # create a link in the current directory to the existing sqlite db
+    ln -s "$ncbi_tax_dir/${params.ncbi_tax_db}" ${params.ncbi_tax_db} 
+
+  """ :
+  // create a sqlite database containing NCBI taxonomy files if it doesn't already exist
+  """
+     ${params.scripts_bindir}/create_sqlite_taxonomy_databases $ncbi_tax_dir $params.ncbi_tax_db 
+  """
+}
+
+post_ncbi_tax_check_ch.first().into{tax_db_ch_1; tax_db_ch_2; tax_db_ch_3; tax_db_ch_4}
+
+/*
+  Create a channel containing the path to an (optional) local copy of the 
+  NCBI blast/taxonomy db to make BLAST taxonomically aware
+ */
+blast_tax_ch = Channel.empty()
+
+// if this path was provided as a parameter, then create a channel
+// from this path and set a boolean to true to indicate it's an existing
+// directory
+if (params.blast_tax_dir) {
+   blast_tax_ch = Channel.fromPath( params.blast_tax_dir )
+                         .map { path -> [ path , true ] }  
+} else {
+   // if this path was *not* provided as a parameter, then create a channel
+   // from a bogus path and set a boolean to false 
+   // to indicate it *doesn't* refer to an existing directory
+   blast_tax_ch = Channel.fromPath( "does_not_exist" )
+                         .map { path -> [ path , false ] }  
+}
+
+/* 
+  Confirm that local blast will be taxonomically aware
+ */
+process check_blast_tax {
+  label 'process_low'
+  publishDir "${params.tax_db_out_dir}", mode:'link'
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/curl:7.80.0"
+  } else {
+      container "quay.io/biocontainers/curl:7.80.0"
+  }
+
+  input:
+  tuple path(blast_tax_dir), val(existing_db) from blast_tax_ch
+
+  output:
+  path ("checked_blast_tax_dir") into post_blast_tax_check_ch
+  path ("checked_blast_tax_dir") into post_blast_tax_check_dmd_ch
+
+  script:
+  // if a local blast_tax_dir is specified, check that it contains the expected files
+  existing_db ? 
+  """
+    # check that the directory exists
+    if [ ! -d "${blast_tax_dir}" ] ; then
+      echo "ERROR: BLAST taxonomy directory ${blast_tax_dir} (--blast_tax_dir) does not exist."
+      exit 1
+    fi 
+    # check that appropriate files exist
+    if [ ! -f "${blast_tax_dir}/taxdb.btd" ] ; then
+      echo "ERROR: required BLAST taxonomy file taxdb.btd not in directory ${blast_tax_dir} (--blast_tax_dir)."
+      exit 1
+    fi 
+    if [ ! -f "${blast_tax_dir}/taxdb.bti" ] ; then
+      echo "ERROR: required BLAST taxonomy file taxdb.bti not in directory ${blast_tax_dir} (--blast_tax_dir)."
+      exit 1
+    fi 
+
+    # create a link to the actual dir and output that link
+    ln $blast_tax_dir checked_blast_tax_dir                                    
+  
+  """ :
+  // if tax db doesn't already exist : download the necessary files and keep track of directory 
+  """
+    # make a new local directory to contain the files
+    # first remove broken link to non-existent file
+    rm $blast_tax_dir
+    # make a new directory, into which we'll put the blast tax files
+    mkdir checked_blast_tax_dir
+    # download taxdb files
+    curl -OL ${params.blast_tax_url}
+    # unpack archive
+    tar xvf taxdb.tar.gz
+    # move files to blast_tax_dir
+    mv taxdb.??? checked_blast_tax_dir
+    # get rid of archive
+    rm taxdb.tar.gz
+  """
+}
+
+/*
   Use blastn to identify closest related database sequences
 */
 process blastn_contigs_and_singletons {
@@ -730,13 +1091,18 @@ process blastn_contigs_and_singletons {
   }                                                                             
 
   input:
-  // path(merged_contigs_and_singletons) from pre_blastn_merge_ch
   tuple val(sample_id), path(contig_weights), path(contigs_and_singletons) from post_contigs_singletons_ch
+  // the collect operators for the next 2 steps are required to convert the paths to value channels so they
+  // repeat for each input.  
+  path(blast_tax_dir), stageAs: 'local_blast_tax_dir' from post_blast_tax_check_ch.collect()
+  path(local_nt_database_dir), stageAs: 'local_nt_db_dir'  from post_blast_db_check_ch.collect()
 
   output:
   tuple path("${contigs_and_singletons}.bn_nt"), val(sample_id), path(contig_weights), path(contigs_and_singletons) into post_blastn_ch
 
   script:
+  def local_nt_database = "${local_nt_database_dir}/${params.local_nt_database_name}"
+
   def blastn_columns = "qaccver saccver pident length mismatch gaps qstart qend sstart send evalue bitscore staxid ssciname scomname sblastname sskingdom"
   /*                                                                              
             staxid means Subject Taxonomy ID                                    
@@ -756,10 +1122,10 @@ process blastn_contigs_and_singletons {
 
   # have to set this environmental variable so blast can be taxonomically aware 
   # poorly documented feature of command line blast 
-  export "BLASTDB=${params.blast_db_dir}"
+  export BLASTDB="$blast_tax_dir"
 
   # run the megablast 
-  blastn -num_threads $task.cpus -db ${params.nt_blast_db} -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt
+  blastn -num_threads $task.cpus -db $local_nt_database -task megablast -evalue ${params.max_blast_nt_evalue} -query $contigs_and_singletons -outfmt "6 $blastn_columns" -out ${contigs_and_singletons}.bn_nt
   """                                                                           
 }
 
@@ -770,7 +1136,7 @@ process blastn_contigs_and_singletons {
   they match read or contig IDs present in the input contigs and singletons fasta
   for individual samples.  Uses blast_from_fasta script.
 */
-process split_merged_blastn_results {
+process process_blastn_output {
   label 'highmem'
   publishDir "${params.blast_out_dir}", mode:'link'
 
@@ -832,16 +1198,20 @@ process tally_blastn_results {
 
   input:
   tuple val(sample_id), path(contig_weights), path(blast_out) from post_blastn_tally_ch
+  path(tax_db) from tax_db_ch_1
 
   output:
-  tuple val(sample_id), path("*.tally") into post_tally_ch
+  path("*bn_nt.tally") into blastn_tally_file_ch
 
   script:
+
   // TODO: move tally_blast_hits logic into an R script?
   // TODO: tally_blast_hits shouldn't need to do accession->taxid lookups if taxid are in blast results
+  // ${params.scripts_bindir}/tally_blast_hits -ntd $local_tax_db_dir/${params.ncbi_tax_db} -lca -w $contig_weights $blast_out > ${blast_out}.tally
+  // ${params.scripts_bindir}/tally_blast_hits -ntd $local_tax_db_dir/${params.ncbi_tax_db} -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
   """
-  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights $blast_out > ${blast_out}.tally
-  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights $blast_out > ${blast_out}.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
   """
 }
 
@@ -859,29 +1229,17 @@ process distribute_blastn_results {
 
   input:
   tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastn_distribute_ch
+  path(tax_db) from tax_db_ch_2
                                                                                 
   output:                                                                       
   tuple val(sample_id), path("*.fasta_*") optional true into virus_fasta_ch
 
   script:
-  // TODO: move distribute logic into an R script?
   """
   # pull out virus-derived reads - this will create a file for each viral taxon
-  ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -v $contigs_and_singletons $blast_out
+  ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -ntd $tax_db -v $contigs_and_singletons $blast_out
   """
 }
-
-/* 
- * We need to deal with the fact that each sample can produce multiple virus
- * fasta files.  This will create a channel that passes sample ID, one fasta
- * and the input fastq to the remap process below
- * see: https://www.nextflow.io/docs/latest/process.html#input-repeaters-each
- * and: https://www.nextflow.io/docs/latest/operator.html#operator-combine
- * and: https://github.com/nextflow-io/nextflow/issues/440
- */
-virus_remap_ch = virus_fasta_ch.transpose().combine(post_host_filter_remap_ch, by: 0)
-
-// virus_remap_ch.subscribe{ }
 
 /*
   This creates a new channel that merges all of the contigs and singletons
@@ -895,7 +1253,6 @@ virus_remap_ch = virus_fasta_ch.transpose().combine(post_host_filter_remap_ch, b
 post_blastn_blastx_merge_ch
       .collectFile(name: 'merged_contigs_and_singletons.fasta')
       .set{merged_blastx_ch}
-
 
 /*
   Run diamond to attempt to assign contigs (and singletons) remaining
@@ -913,20 +1270,24 @@ process blastx_merged_contigs_and_singletons {
 
   input:
   path(merged_contigs_and_singletons) from merged_blastx_ch
+  path(local_diamond_database_dir) from post_diamond_db_check_ch.collect()
+  path(blast_tax_dir), stageAs: 'local_blast_tax_dir' from post_blast_tax_check_dmd_ch.collect()
 
   output:
   path("${merged_contigs_and_singletons}.bx_nr") into merged_blastx_results_ch
 
   script:
+
+  def diamond_database = "${local_diamond_database_dir}/${params.local_diamond_database_name}"
   def blastx_columns = "qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore staxids sscinames sskingdoms"
                                                                                 
   """                                                                           
   # run diamond to do a blastx-style search
 
   # have to set this environmental variable so diamond can be taxonomically aware 
-  export "BLASTDB=${params.blast_db_dir}"
+  export BLASTDB="$blast_tax_dir"
 
-  diamond blastx --threads ${task.cpus} -c 1 -b 8 --db ${params.nr_diamond_db} --query $merged_contigs_and_singletons --more-sensitive --outfmt 6 $blastx_columns --evalue ${params.max_blasx_nr_evalue} --out ${merged_contigs_and_singletons}.bx_nr
+  diamond blastx --threads ${task.cpus} -c 1 -b 8 --db ${diamond_database} --query $merged_contigs_and_singletons --more-sensitive --outfmt 6 $blastx_columns --evalue ${params.max_blasx_nr_evalue} --out ${merged_contigs_and_singletons}.bx_nr
   """
 }
 
@@ -997,16 +1358,17 @@ process tally_blastx_results {
 
   input:
   tuple val(sample_id), path(contig_weights), path(blast_out) from post_blastx_tally_ch
+  path(tax_db) from tax_db_ch_3
 
   output:
-  tuple val(sample_id), path("*.tally") 
+  path("*bx_nr.tally") into blastx_tally_file_ch
 
   script:
   // TODO: move tally_blast_hits logic into an R script?
   // TODO: tally_blast_hits shouldn't need to do accession->taxid lookups anymore
   """
-  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights $blast_out > ${blast_out}.tally
-  ${params.scripts_bindir}/tally_blast_hits -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights $blast_out > ${blast_out}.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
   """
 }
 
@@ -1024,6 +1386,7 @@ process distribute_blastx_results {
 
   input:
   tuple val(sample_id), path(contigs_and_singletons), path(blast_out) from post_blastx_distribute_ch
+  path(tax_db) from tax_db_ch_4
 
   output:
   tuple val(sample_id), path("*.fasta_*") optional true
@@ -1032,74 +1395,51 @@ process distribute_blastx_results {
   // TODO: move distribute logic into an R script?
   """
   # pull out virus-derived reads - this will create a file for each viral taxon
-  ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -v $contigs_and_singletons $blast_out
+  ${params.scripts_bindir}/distribute_fasta_by_blast_taxid -ntd $tax_db -v $contigs_and_singletons $blast_out
   """
 }
 
+/* 
+ * We need to deal with the fact that each sample can produce multiple virus
+ * fasta files.  This will create a channel that passes sample ID, one fasta
+ * and the input fastq to the remap process below
+ * see: https://www.nextflow.io/docs/latest/process.html#input-repeaters-each
+ *      https://www.nextflow.io/docs/latest/operator.html#operator-combine
+ *      https://github.com/nextflow-io/nextflow/issues/440
+ */
+virus_remap_ch = virus_fasta_ch.transpose().combine(post_host_filter_remap_ch, by: 0)
+
 /*
-   filter out single reads assigned to virus sequences before remapping
-   since there is no point mapping reads to reads.
-*/
-process pull_out_virus_contigs {
-  label 'lowmem_non_threaded'                                                                
-  publishDir "${params.remapping_out_dir}", mode:'link'
-
-  // singularity info for this process                                          
-  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-      container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
-  } else {                                                                      
-      container "quay.io/biocontainers/perl:5.26.2"
-  }   
-
-  input:
-  tuple val(sample_id), path(virus_fasta), path(input_fastq) from virus_remap_ch
-
-  output:
-  tuple val(sample_id), path("*.contigs.fasta"), path(input_fastq) into virus_contig_remap_ch
-
-  shell: 
-  '''
-  #!/usr/bin/env perl
-
-  # open fasta file with virus contigs and singleton reads
-  open (my $fh, "<", !{virus_fasta}) or die ("error: couldn't open file: !{virus_fasta}");
-
-  while (<$fh>)
-
-  
-  '''
-}
-/*
-   remap host filtered reads to virus sequences
+   Remap host-filtered reads to putative virus contigs
 */
 process remap_reads_to_virus_seqs {
-  label 'lowmem_threaded'                                                                
-  publishDir "${params.remapping_out_dir}", mode:'link'
+  label 'lowmem_threaded'
+  publishDir "${params.virus_remap_out_dir}", mode:'link'
 
-  // singularity info for this process                                          
+  // singularity info for this process
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
       container "https://depot.galaxyproject.org/singularity/bowtie2:2.4.5--py39ha4319a6_1"
-  } else {                                                                      
+  } else {
       container "quay.io/biocontainers/bowtie2:2.4.5--py39ha4319a6_1"
-  }   
+  }
 
   input:
   tuple val(sample_id), path(virus_fasta), path(input_fastq) from virus_remap_ch
 
   output:
-  tuple val(sample_id), path("*.sam") optional true into virus_sam_ch 
+  tuple val(sample_id), path("*.sam") into virus_sam_ch
 
   script:
   // handle single-end or paired-end inputs
-  def r1 = input_fastq[0] 
+  def r1 = input_fastq[0]
   def r2 = input_fastq[1] ? input_fastq[1] : ""
   def bowtie_file_input  = input_fastq[1] ? "-1 $r1 -2 $r2" : "-U $r1"
 
   """
-  bowtie2-build $virus_fasta index
+  bowtie2-build $virus_fasta "${virus_fasta}_index"
 
   bowtie2 \
-  -x index \
+  -x "${virus_fasta}_index" \
   --local \
   -q \
   --no-unal \
@@ -1108,6 +1448,74 @@ process remap_reads_to_virus_seqs {
   --score-min "C,${params.host_bt_min_score},0" \
   -p ${task.cpus} \
   -S "${virus_fasta}.sam" \
-  2> "${sample_id}.host_filtering_bt.log" 
+  2> "${sample_id}.host_filtering_bt.log"
   """
 }
+
+/*
+   Calculate virus remapping coverage stats 
+*/
+process virus_remapping_coverage_stats {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.virus_remap_out_dir}", mode:'link'
+
+  // singularity info for this process                                          
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/samtools:1.17--h00cdaf9_0"
+  } else {                                                                      
+      container "quay.io/biocontainers/samtools:1.17--h00cdaf9_0"
+  }     
+
+  input:
+  tuple val(sample_id), path(sam) from virus_sam_ch
+
+  output:
+  tuple val(sample_id), path("*.txt") 
+
+  // TODO: version with prepended output
+  // samtools depth !{bam} | awk '{ print !{sample_id} "\t" $0; }' > !{depth}
+  // samtools coverage !{bam} | awk '{ print !{sample_id} "\t" $0; }' > !{cov}
+
+  script:
+  def bam   = sam.getName().replaceAll('.sam$', '.bam')
+  def depth = sam.getName().replaceAll('.sam$', '.depth.txt')
+  def cov   = sam.getName().replaceAll('.sam$', '.cov.txt')
+  """
+  # create sorted bam from sam
+  samtools sort ${sam} > ${bam}
+
+  # create depth file with a prepended column containing sample ID
+  samtools depth ${bam} > ${depth}
+
+  # create coverage stats file with a prepended column containing sample ID
+  samtools coverage ${bam}  > ${cov}
+
+  """
+}
+
+/*
+   Output a matrix of # of virus-mapping reads
+*/
+process  output_virus_mapping_matrix {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.virus_matrix_out_dir}", mode:'link'
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
+  } else {
+      container "quay.io/biocontainers/perl:5.26.2"
+  }
+
+  input:
+  path(tally_files) from blastn_tally_file_ch.mix(blastx_tally_file_ch).collect()
+
+  output:
+  path("*.txt") 
+
+  script:
+  """
+  ${params.scripts_bindir}/make_taxa_matrix -v -c ${params.min_matrix_reads} $tally_files > virus_matrix.txt
+  """
+}
+

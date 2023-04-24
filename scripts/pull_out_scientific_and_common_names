@@ -1,0 +1,63 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+
+my $print_usage = 0;
+
+my $usage = <<USAGE;
+
+  This script parses through a names.dmp TSV formatted file and 
+  outputs the row with the first encountered common name for each taxid 
+  and any rows with scientific names
+
+  Doing this because taxids can have multiple common names defined and 
+  I want to create a database with just a single common name per taxid
+  and the scientific names for each taxid, which are unique.
+
+  It may be that the first encountered common name isn't the "best" one
+  but the taxonomy db provides no information to rank them.
+
+  Mark Stenglein,  4/22/2023
+
+  Usage: $0 [-h] names.tsv.dmp
+
+   [-h]           print this message
+
+   names.tsv.emp  The NCBI Taxonomy db names.dmp file that has been 
+                  convereted into tsv format.
+
+USAGE
+
+if ((scalar @ARGV == 0) and -t STDIN) { print $usage and exit; }
+
+GetOptions ("h" => \$print_usage);
+
+my %common_names = ();
+
+while (<>)
+{
+   chomp;
+   my @fields = split "\t";
+   my $taxid = $fields[0];
+   my $type = $fields[3];
+
+   if ($type eq "common name") 
+   {
+      if (!defined $common_names{$taxid}) 
+      {
+         # keep track of fact we've seen before
+         $common_names{$taxid} = $fields[1];
+
+         # output the row
+         print "$_\n";
+      }
+   } 
+   elsif ($type eq "scientific name") 
+   {
+      # output all scientific name rows (unique)
+      print "$_\n";
+   }
+}
+
+

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-rm -rf work results report.html* flowchart.pdf* .nextflow*
+rm -rf work results test_results report.html* flowchart.pdf* .nextflow*

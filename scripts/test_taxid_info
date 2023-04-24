@@ -1,0 +1,71 @@
+#!/usr/bin/env perl
+
+use strict;
+use Getopt::Long;
+use Data::Dumper;
+
+# allow use of modules in pwd
+use Cwd 'abs_path';
+use File::Basename;
+use lib dirname( abs_path $0 );
+
+use taxid_info;
+
+my $print_usage = 0;
+
+my $db_path = "/home/databases/NCBI_Taxonomy/nodes_dmp.sqlite3";
+
+my $usage = <<USAGE;
+
+  This script tests retreival of info about NCBI taxids: their descendent taxids, parent taxid, ankd rank
+
+  This mapping is accomplished via a SQLite database containing info from the NCBI nodes.dmp file
+
+  This database is created using:
+  https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/scripts/download_and_process_taxonomy_databases 
+
+  The location of this database can be specified using the -db command-line option.
+
+  Mark Stenglein,  3/27/2023
+
+  Usage: $0 [-h] [-db db_path] 
+
+   [-h]          Print this message
+
+   [-db db_path] The path to a SQlite database containing acc->taxid mapping
+                 (default: $db_path)
+
+USAGE
+
+if (! -e $db_path)
+{
+  die("ERROR: db_path: $db_path does not exist.\n");
+}
+
+sub test_node_info
+{
+   my $taxid = shift @_;
+
+   print "child taxids:\n";
+   my $descendents = taxid_info::taxid_descendents($db_path, $taxid);
+   print Dumper($descendents);
+   
+   print "\nparent taxid:\n";
+   my $parent = taxid_info::taxid_parent($db_path, $taxid);
+   print Dumper($parent);
+   
+   print "\nrank:\n";
+   my $rank = taxid_info::taxid_rank($db_path, $taxid);
+   print Dumper($rank);
+}
+
+
+print "Homo sapiens: taxid 9606\n";
+test_node_info("9606");
+
+print "Root node: taxid 1\n";
+test_node_info("1");
+
+print "Flavivirus genus: taxid 11051\n";
+test_node_info("11051");
+

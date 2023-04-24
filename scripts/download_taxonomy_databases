@@ -8,18 +8,17 @@
 # Mark Stenglein, 2014 updated: 3/27/2023
 
 ftp_url='ftp://ftp.ncbi.nih.gov/pub/taxonomy/'
-file_list=(taxcat.tar.gz taxcat.tar.gz.md5 taxcat_readme.txt taxdump.tar.gz taxdump.tar.gz.md5 taxdump_readme.txt accession2taxid/nucl_gb.accession2taxid.gz accession2taxid/prot.accession2taxid.gz)
-gzip_file_list=(taxcat.tar.gz taxdump.tar.gz nucl_gb.accession2taxid.gz prot.accession2taxid.gz)
-ungzip_file_list=(taxcat.tar taxdump.tar nucl_gb.accession2taxid prot.accession2taxid$)
+file_list=(taxcat.tar.gz taxcat.tar.gz.md5 taxcat_readme.txt taxdump.tar.gz taxdump.tar.gz.md5 taxdump_readme.txt) 
+gzip_file_list=(taxcat.tar.gz taxdump.tar.gz)
+ungzip_file_list=(taxcat.tar taxdump.tar) 
 tar_file_list=(taxcat.tar taxdump.tar)
-
 
 # delete old files and download new versions 
 for f in ${file_list[@]}
 do
    rm -f `basename $f`
    echo downloading ${ftp_url}${f}
-   wget -nv ${ftp_url}${f}
+   curl -OL ${ftp_url}${f}
 done
 
 # cleanup old unzipped files
@@ -42,12 +41,4 @@ do
    echo unpacking ${f}
    tar xvf ${f}
 done
-
-# create several SQLite databases with NCBI taxonomy information
-echo "loading acc->taxid info into sqlite database"
-./create_acc_taxid_sqlite_table
-./create_categories_dmp_sqlite_table
-./create_nodes_dmp_sqlite_table
-echo "done loading acc->taxid info into sqlite databases"
-date
 

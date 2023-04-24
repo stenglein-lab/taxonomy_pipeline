@@ -1,0 +1,13 @@
+#!/bin/bash
+
+# validate that a SQLite database is minimally valid
+# see: https://stackoverflow.com/questions/3888529/how-to-tell-if-sqlite-database-file-is-valid-or-not
+#
+# This sqlite3 command will exit with 0 status (success) if everything looks OK
+# and will exit with non-zero exit status otherwise
+
+db_path=$1
+
+sqlite3 -batch $db_path <<"EOF"
+pragma schema_version;
+EOF

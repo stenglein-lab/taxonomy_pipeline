@@ -22,21 +22,41 @@ use strict;
 use base 'Exporter';
 our @EXPORT = qw(taxid_to_kingdom);
 
-# my $cat_filename="/home/databases/NCBI_Taxonomy/categories.dmp";
-my $cat_db="/home/databases/NCBI_Taxonomy/categories_dmp.sqlite3";
+# this will be a connection to a database
+my $_dbh = undef;
 
+# my $cat_db="/home/databases/NCBI_Taxonomy/categories_dmp.sqlite3";
 
-sub taxid_to_kingdom
+# connect to SQLite database if not already connected
+sub _open_db_connection
 {
-   my @taxids = @_;
-   my @kingdoms = ();
-	my %taxid_kingdom_map = ();
+   my $db_path = shift @_;
 
+   # check that the SQlite database file exist
+   if (! -e $db_path)
+   {
+      die("ERROR: NCBI categories.dmp SQLite file ($db_path) does not exist or is not accessible.\n");
+   }
 
-   # connect to sqlite database
-   my $dbh = DBI->connect("DBI:SQLite:dbname=$cat_db",
+   # only open connection if not already connected
+   if (!defined $_dbh)
+   {
+      # warn "opening dbi connection to $db_path.\n";
+      $_dbh = DBI->connect("DBI:SQLite:dbname=$db_path",
                           '','',
                           {'RaiseError' => 1}) or die $DBI::errstr;
+   }
+   return $_dbh;
+}
+
+# map taxids to kingdoms as defined in the NCBI taxonomy categories.dmp file
+sub taxid_to_kingdom
+{
+   my $db_file = shift @_;
+   my $dbh = _open_db_connection($db_file);
+
+   my @taxids = @_;
+   my %taxid_kingdom_map = ();
 
    # determine kingdoms for these taxids
    my $num_taxids = scalar @taxids;
@@ -61,16 +81,19 @@ sub taxid_to_kingdom
       $taxid_kingdom_map{$taxid} = $kingdom;
    }
 
-   # create array to return
-   # will return an array that is 1:1 with input array
-   foreach my $taxid (@taxids)
+   # check that all taxids are accounted for
+   foreach my $tid (@taxids)
    {
-      push @kingdoms, $taxid_kingdom_map{$taxid};
+      if (!$taxid_kingdom_map{$tid})
+      {
+         # warn "WARNING: no kingdom for taxid $tid\n";
+         # create a place for taxid in hash, with undefined value
+         $taxid_kingdom_map{$tid} = undef;
+      }
    }
 
-	$dbh->disconnect;
-
-   return @kingdoms;
+   # return a ref to hash with results
+   return \%taxid_kingdom_map;
 }
 
 
