@@ -42,7 +42,7 @@ In this example, the pattern will match fastq files with R1 in their names, so w
 
 #### Host_filtering
 
-The pipeline optionally removes host-derived reads from datasets because generally host reads are not what we are interested in and removing these reads makes downstream taxonomic classification steps go **much** faster.  To perform host filtering, you will need one or more bowtie2 indexes of host reference genomes.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index if there is not one already available.
+The pipeline optionally removes host-derived reads from datasets because generally host reads are not what we are interested in and removing these reads makes downstream taxonomic classification steps go **much** faster.  To perform host filtering, you will need one or more bowtie2 indexes of host reference genomes.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index.
 
 The location of bowtie2 indexes are provided in a file specified by the `--host_map_file` command line argument as in the above example.
 
@@ -146,9 +146,9 @@ This pipeline uses two databases for taxonomic classification.  These must exist
 
 (1) The [NCBI nt nucleotide database](https://ftp.ncbi.nlm.nih.gov/blast/db/) for use in BLASTN searches.  
 
-(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.  This is downloaded and created as part of [this same script](./scripts/download_and_process_sequence_databases)
+(2) A [diamond](https://github.com/bbuchfink/diamond) database created from the NCBI nr protein sequence database.  
 
-[This script](./scripts/download_and_process_sequence_databases) will download the NCBI nucleotide (nt) BLAST database and create the diamond protein (nr) database. 
+[This script](./scripts/download_and_process_sequence_databases) will download both databases.  
 
 These databases must be present locally on a computer or server to run this pipeline.  This requires ~1.2 Tb of disk space (as of early 2022).  These databases take up a lot of space, so before doing this make sure that these databases are not already available locally.
 
@@ -159,7 +159,7 @@ These databases must be present locally on a computer or server to run this pipe
 The default location of the blast nt databases is: `/home/databases/nr_nt/nt`. This value will be passed to the -db option when running blastn. This default value can be overridden using the `--nt_blast_db` parameter, for instance:
 
 ```
-nextflow run stenglein-lab/taxonomy_pipeline -profile singularity --nt_blast_db /path/to/my/local/db/nt
+nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt --nt_blast_db /path/to/my/local/db/nt
 ```
 In this example, there should be a file named `/path/to/my/local/db/nt.nal` in addition to the other nt database files.
 
