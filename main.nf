@@ -659,7 +659,7 @@ process assemble_remaining_reads {
   Get contigs from assembly, converting into 1-line fasta format
 */
 process retrieve_contigs {
-  publishDir "${params.contigs_out_dir}", mode:'link'
+  publishDir "${params.contigs_out_dir}", mode:'link', pattern:"*.fa"
   label 'lowmem'
 
   // singularity info for this process                                          
@@ -690,7 +690,7 @@ process retrieve_contigs {
 */
 process quantify_read_mapping_to_contigs {
   label 'lowmem_threaded'
-  publishDir "${params.contigs_out_dir}", mode:'link'
+  // publishDir "${params.contigs_out_dir}", mode:'link'
 
   // singularity info for this process                                          
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
@@ -725,7 +725,7 @@ process quantify_read_mapping_to_contigs {
 */
 process merge_contigs_and_singletons {
   label 'lowmem_threaded'
-  publishDir "${params.contigs_out_dir}", mode:'link'
+  // publishDir "${params.contigs_out_dir}", mode:'link'
 
   // singularity info for this process                                          
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
