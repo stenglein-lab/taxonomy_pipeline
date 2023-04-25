@@ -15,16 +15,17 @@ The pipeline requires several main inputs:
 1. [The path to the directory containing your fastq files (`--fastq_dir`)](#FASTQ_directory)
 2. [The path to a file defining how host filtering will be performed (`--host_map_file`)](#Host_filtering)
 3. [Local copies of NCBI nucleotide and protein sequence databases](#Sequence_databases)
-4. [Singularity or conda to provide required software tools (`-profile singularity` or `profile conda`).](#Other_software_dependencies)
+4. [Singularity or conda to provide required software tools (`-profile singularity` or `-profile conda`).](#Other_software_dependencies)
 
 
-**Here's a simple example of a command line to run the pipeline:**
+**Here's an example of a command line to run the pipeline:**
 
 ```
 nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt
 ```
 
-Nextflow will automatically download the pipeline code [from github](https://github.com/stenglein-lab/taxonomy_pipeline) and run using the provided parameter values. `-resume` will [resume pipeline execution](https://www.nextflow.io/docs/latest/cli.html#run) if it stopped for some reason (or if you, for instance, added additional fastq files to the fastq-containing directory).  `-profile singularity` tells nextflow to use Singularity to [handle software dependencies](#Other_software_dependencies).  `--fastq_dir` specifies the location of a [directory containing input fastq](#FASTQ_directory).  `--host_map_file` specifies the location of a file that defines [how host reads](#Host_filtering) should be filtered.
+Nextflow will [automatically download](https://www.nextflow.io/docs/latest/sharing.html) the [pipeline code](https://github.com/stenglein-lab/taxonomy_pipeline)  from github and run using the provided parameter values. `-resume` will [resume pipeline execution](https://www.nextflow.io/docs/latest/cli.html#run) if it stopped for some reason (or if you, for instance, added additional fastq files to the fastq-containing directory).  `-profile singularity` tells nextflow to use Singularity to [handle software dependencies](#Other_software_dependencies).  `--fastq_dir` specifies the location of a [directory containing input fastq](#FASTQ_directory).  `--host_map_file` specifies the location of a file that defines [how host reads](#Host_filtering) should be filtered.
+
  
 #### FASTQ_directory
 
@@ -97,6 +98,10 @@ This pipeline is implemented in Nextflow.  To run the pipeline you will need to 
 ```
 nextflow -version
 ```
+
+**This pipeline currently requires Nextflow version >= 22.10.4 and < 23.**  Nextflow version 23 will not work because it [requires DSL2 syntax](https://www.nextflow.io/blog/2022/evolution-of-nextflow-runtime.html), and this pipeline is still in DSL1.  A [future enhancement]() will convert it to DSL2.  
+
+you can download Nextflow version 22.10.8 from [this link](https://github.com/nextflow-io/nextflow/releases/download/v22.10.8/nextflow)
 
 ### Other_software_dependencies
 
