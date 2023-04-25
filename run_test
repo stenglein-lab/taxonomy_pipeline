@@ -1,5 +1,5 @@
 #!/bin/bash 
 
 
-nextflow run main.nf -resume -profile singularity,local,test --host_map_file test/host_mapping.txt
+nextflow run main.nf -resume -profile singularity,test 
 
