@@ -182,7 +182,7 @@ These databases must be present locally on a computer or server to run this pipe
 
 ##### nt database
 
-The default location of the blast nt databases is: `/home/databases/nr_nt/` and the default name of the database is `nt`. These values will be used to set the `-db` option when running blastn. These default valuecan be overridden using the `local_nt_database_dir` and `-local_nt_database_name` parameters, for instance:
+The default location of the blast nt databases is: `/home/databases/nr_nt/` and the default name of the database is `nt`. These values will be used to set the `-db` option when running blastn. These default value can be overridden using the `local_nt_database_dir` and `local_nt_database_name` parameters, for instance:
 
 ```
 nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt --local_nt_database_dir /path/to/my/local/db/
@@ -191,7 +191,7 @@ In this example, there should be a file named `/path/to/my/local/db/nt.nal` in a
 
 ##### diaomond nr database
 
-The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`.  This path will be passed to the `--db` option when running diamond.  This path is specififed by the `local_diamond_database_dir` and `local_diamond_database_name` parameters, as described above for the nt BLASTN database. 
+The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`.  This path will be passed to the `--db` option when running diamond.  This path is specififed by the `local_diamond_database_dir` and `local_diamond_database_name` parameters, which can be overridden as described above for the nt BLASTN database. 
 
 ##### Taxonomy db
 
@@ -224,6 +224,6 @@ A number of pipeline defaults are specified in [nextflow.config](./nextflow.conf
 
 ## Tutorial
 
-There is [a tutorial](./docs/tutorial.md) that describes the main steps of this pipeline.  This tutorial refers to the older, pre-nextflow bash version of this pipeline, but the steps are similar and so the information in the tutorial remains applicable to understanding how the pipeline works in principle.
+There is [a tutorial](./docs/tutorial.md) that describes the main steps of this pipeline.  This tutorial refers to the older, pre-nextflow [bash version](https://github.com/stenglein-lab/taxonomy_pipeline/releases/tag/2022_3_30_bash) of this pipeline, but the steps are similar and so the information in the tutorial remains applicable to understanding how the pipeline works in principle.
 
 
