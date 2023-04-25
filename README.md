@@ -99,9 +99,28 @@ This pipeline is implemented in Nextflow.  To run the pipeline you will need to 
 nextflow -version
 ```
 
-**This pipeline currently requires Nextflow version >= 22.10.4 and < 23.**  Nextflow version 23 will not work because it [requires DSL2 syntax](https://www.nextflow.io/blog/2022/evolution-of-nextflow-runtime.html), and this pipeline is still in DSL1.  A [future enhancement]() will convert it to DSL2.  
+**This pipeline currently requires Nextflow version >= 22.10.4 and < 23.**  Nextflow version 23 will not work because it [requires DSL2 syntax](https://www.nextflow.io/blog/2022/evolution-of-nextflow-runtime.html), and this pipeline is still in DSL1.  A [future enhancement](https://github.com/stenglein-lab/taxonomy_pipeline/issues/2) will convert it to DSL2.  
 
 you can download Nextflow version 22.10.8 from [this link](https://github.com/nextflow-io/nextflow/releases/download/v22.10.8/nextflow)
+
+#### Updating cached versions of the pipeline
+
+Nextflow will download and cache the pipeline code in a subdirectory of your home directory: 
+
+```
+# See the downloaded pipeline code:
+$ ls ~/.nextflow/assets/stenglein-lab/taxonomy_pipeline/
+bin/    conf/        docs/   LICENSE  make_clean*      README.md      run_test*  server/
+conda/  containers/  input/  main.nf  nextflow.config  run_pipeline*  scripts/   test/
+```
+
+If the pipeline has been updated and you want to ensure that you are running the latest code you can run:
+
+```
+nextflow drop stenglein-lab/taxonomy_pipeline
+```
+
+To [force nextflow](https://www.nextflow.io/docs/latest/sharing.html#deleting-a-downloaded-project) to delete the downloaded pipeline code and re-download the latest version.  You can also run specific versions of the pipeline, as [described here in more detail](https://www.nextflow.io/docs/latest/sharing.html#handling-revisions).
 
 ### Other_software_dependencies
 
@@ -114,6 +133,8 @@ The pipeline can use singularity containers to run programs like bowtie2 and bla
 ```
 singularity --version
 ```
+
+There is no prescribed minimum version of Singularity, but older version (>1-2 years old) are likely to have problems.
 
 To run with singularity containers include the option `-profile singularity` in the nextflow command line, for instance:
 
@@ -161,16 +182,16 @@ These databases must be present locally on a computer or server to run this pipe
 
 ##### nt database
 
-The default location of the blast nt databases is: `/home/databases/nr_nt/nt`. This value will be passed to the -db option when running blastn. This default value can be overridden using the `--nt_blast_db` parameter, for instance:
+The default location of the blast nt databases is: `/home/databases/nr_nt/` and the default name of the database is `nt`. These values will be used to set the `-db` option when running blastn. These default valuecan be overridden using the `local_nt_database_dir` and `-local_nt_database_name` parameters, for instance:
 
 ```
-nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt --nt_blast_db /path/to/my/local/db/nt
+nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/ --host_map_file /path/to/host_map_file.txt --local_nt_database_dir /path/to/my/local/db/
 ```
 In this example, there should be a file named `/path/to/my/local/db/nt.nal` in addition to the other nt database files.
 
 ##### diaomond nr database
 
-The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`.  This path will be passed to the --db option when running diamond.  This default value can be overridden using the `--nt_diamond_db` parameter.
+The default location of the diamond database is: `/home/databases/nr_nt/nr.dmnd`.  This path will be passed to the `--db` option when running diamond.  This path is specififed by the `local_diamond_database_dir` and `local_diamond_database_name` parameters, as described above for the nt BLASTN database. 
 
 ##### Taxonomy db
 
@@ -179,6 +200,8 @@ The NCBI taxonomy databases are downloaded automatically as part of the pipeline
 ## Assumptions about input data
 
 1. This pipeline is designed to work with Illumina data.  
+2. Input fastq can be single-end or paired-end, or a mix.
+3. Input fastq can be compressed (.gz) or not, but you might as well keep your input compressed.
 
 ## Testing
 
