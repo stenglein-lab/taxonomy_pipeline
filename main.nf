@@ -1272,7 +1272,8 @@ process blastx_merged_contigs_and_singletons {
   }                                                                             
 
   input:
-  path(merged_contigs_and_singletons) from merged_blastx_ch
+  // the filter here will prevent empty inputs from running
+  path(merged_contigs_and_singletons) from merged_blastx_ch.filter{ it.size() > 0 }  
   path(local_diamond_database_dir) from post_diamond_db_check_ch.collect()
   path(blast_tax_dir), stageAs: 'local_blast_tax_dir' from post_blast_tax_check_dmd_ch.collect()
 
