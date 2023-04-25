@@ -1,0 +1,6 @@
+#!/bin/bash 
+
+# run small test datasets using conda
+
+nextflow run stenglein-lab/taxonomy_pipeline -profile test,conda
+
