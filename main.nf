@@ -1205,6 +1205,12 @@ process tally_blastn_results {
 
   output:
   path("*bn_nt.tally") into blastn_tally_file_ch
+  tuple val ("genus"),       path("*.genus.tally")        into genus_tally_ch
+  tuple val ("family"),      path("*.family.tally")       into family_tally_ch
+  tuple val ("order"),       path("*.order.tally")        into order_tally_ch
+  tuple val ("class"),       path("*.class.tally")        into class_tally_ch
+  tuple val ("kingdom"),     path("*.kingdom.tally")      into kingdom_tally_ch
+  tuple val ("superkingdom"),path("*.superkingdom.tally") into superkingdom_tally_ch
 
   script:
 
@@ -1215,6 +1221,12 @@ process tally_blastn_results {
   """
   ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights $blast_out > ${blast_out}.tally
   ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -ti ${blast_out} > ${blast_out}.tab_tree.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -r genus ${blast_out} > ${blast_out}.genus.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -r family ${blast_out} > ${blast_out}.family.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -r order ${blast_out} > ${blast_out}.order.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -r class ${blast_out} > ${blast_out}.class.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -r kingdom ${blast_out} > ${blast_out}.kingdom.tally
+  ${params.scripts_bindir}/tally_blast_hits -ntd $tax_db -lca -w $contig_weights -t -r superkingdom ${blast_out} > ${blast_out}.superkingdom.tally
   """
 }
 
@@ -1522,4 +1534,34 @@ process  output_virus_mapping_matrix {
   ${params.scripts_bindir}/make_taxa_matrix -v -c ${params.min_matrix_reads} $tally_files > virus_matrix.txt
   """
 }
+
+all_tally_ch = genus_tally_ch.mix(family_tally_ch, order_tally_ch, class_tally_ch, kingdom_tally_ch, superkingdom_tally_ch)
+   .groupTuple()
+
+/*
+   Output matrices of # of reads mapping at different taxonomic levels
+*/
+process  output_taxa_matrices {
+  label 'lowmem_nonthreaded'
+  publishDir "${params.virus_matrix_out_dir}", mode:'link'
+
+  // singularity info for this process
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+      container "https://depot.galaxyproject.org/singularity/perl:5.26.2"
+  } else {
+      container "quay.io/biocontainers/perl:5.26.2"
+  }
+
+  input:
+  tuple val(rank), path(tally_files) from all_tally_ch
+
+  output:
+  path("*.txt") 
+
+  script:
+  """
+  ${params.scripts_bindir}/make_taxa_matrix -r -c ${params.min_matrix_reads} $tally_files > ${rank}_taxa_matrix.txt
+  """
+}
+
 

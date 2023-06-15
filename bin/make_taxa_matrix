@@ -24,6 +24,9 @@ my $usage = <<USAGE;
 
    [-h]               print this message
 
+   [-r]               the input tally files contain an extra rank column
+                      (i.e., were produced by running tally_blast_hits with the -r option)
+
    [-t] taxids_file   limit output to the taxids listed in this file
 
    [-c] tally_cutoff  only output a read count value if value is > this cutoff
@@ -41,11 +44,12 @@ USAGE
 if (scalar @ARGV == 0) {print $usage and exit; }
 
 my $print_usage = 0;
+my $rank_column = 0;
 my $tally_cutoff = 0;
 my $taxid_fn = undef;
 my $virus_only = 0;
 my $no_phage = 0;
-GetOptions ("h" => \$print_usage, "c=s" => \$tally_cutoff, "t=s" => \$taxid_fn, "v" => \$virus_only, "p" => \$no_phage);
+GetOptions ("h" => \$print_usage, "r" => \$rank_column, "c=s" => \$tally_cutoff, "t=s" => \$taxid_fn, "v" => \$virus_only, "p" => \$no_phage);
 
 if ($print_usage) { print $usage; exit }
 
@@ -97,13 +101,26 @@ while (my $tally_fn = shift)
       push @barcodes, $barcode;
    }
 
-   my @rest = ();
    open (my $tally_fh, "<", $tally_fn) or print $usage and die;
    TALLY_LINE: while (<$tally_fh>)
    {
       chomp;
-      # my ($taxid, $name, $common_name, $kingdom, $tally, @rest) = split "\t";
-      my ($taxid, $name, $common_name, $kingdom, $tally, @rest) = split "\t";
+
+      my $rank = undef;
+      my $taxid = undef;
+      my $parent_taxid = undef;
+      my $name = undef;
+      my $common_name = undef;
+      my $kingdom = undef;
+      my $tally = undef;
+      my @rest = ();
+
+      if ($rank_column) {
+        ($rank, $taxid, $parent_taxid, $name, $common_name, $kingdom, $tally, @rest) = split "\t";
+      }
+      else {
+        ($taxid, $name, $common_name, $kingdom, $tally, @rest) = split "\t";
+      }
       if (length $taxid == 0)
       {
          $taxid = "X";
@@ -130,7 +147,7 @@ while (my $tally_fn = shift)
             push @taxids, $taxid;
          }
       }
-		warn "$barcode: $taxid: $tally\n";
+      # warn "$barcode: $taxid: $tally\n";
       $matrix{$barcode}{$taxid} = $tally;
    }
    close ($tally_fh);
