@@ -41,6 +41,15 @@ nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fast
 
 In this example, the pattern will match fastq files with R1 in their names, so would only use single-end data even if R2 files were present.
 
+##### Multiple fastq directories
+
+It is possible to specify multiple fastq-containing directories as input.  In this case, directory paths should be supplied as a comma-delimited list to the `--fastq_dir` command line argument. For instance:
+
+
+```
+nextflow run stenglein-lab/taxonomy_pipeline -resume -profile singularity --fastq_dir /path/to/directory/containing/fastq/,/path/to/another/dir/with/fastq/ --host_map_file /path/to/host_map_file.txt --fastq_pattern "*R[12]*.fastq*"
+```
+
 #### Host_filtering
 
 The pipeline optionally removes host-derived reads from datasets because generally host reads are not what we are interested in and removing these reads makes downstream taxonomic classification steps go **much** faster.  To perform host filtering, you will need one or more bowtie2 indexes of host reference genomes.  [This tutorial section](https://github.com/stenglein-lab/taxonomy_pipeline/blob/main/docs/tutorial.md#section_genome) describes how to download a new host genome and build a bowtie2 index.

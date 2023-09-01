@@ -18,14 +18,29 @@ params.h = false
 
 // TODO: check that appropriate refseq files exist (host bt index, nr/nt, etc.)
 
-/*
- These fastq files represent the main input to this workflow
 
- See here for info on glob pattern matching:
-    https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob
-*/
-Channel
-  .fromFilePairs("${params.fastq_dir}/${params.fastq_pattern}", size: -1, checkIfExists: true, maxDepth: 1)
+/*                                                                              
+ These fastq files represent the main input to this workflow                    
+                                                                                
+ See here for info on glob pattern matching:                                    
+    https://docs.oracle.com/javase/tutorial/essential/io/fileOps.html#glob      
+                                                                                
+ This is setup to handle  possible multiple directories containing fastq        
+ If fastq are in multiple directories, the directories should be provided as    
+ a comma-separated list (no spaces)                                             
+*/                                                                              
+def fastq_dirs = params.fastq_dir.tokenize(',')                                 
+                                                                                
+// construct list of directories in which to find fastq                         
+fastq_dir_list = []                                                             
+for (dir in fastq_dirs){                                                        
+   def file_pattern = "${dir}/${params.fastq_pattern}"                          
+      fastq_dir_list.add(file_pattern)                                          
+      }                                                                         
+                                                                                
+                                                                                
+Channel                                                                         
+  .fromFilePairs(fastq_dir_list, size: -1, checkIfExists: true, maxDepth: 1)    
   // .into {samples_ch_qc; samples_ch_trim; samples_ch_count; host_setup_ch}
   .into {initial_fastq_subsample_ch; initial_fastq_ch}
 
