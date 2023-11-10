@@ -359,9 +359,9 @@ while ($fasta_file && $blast_file)
                            # TODO: handle this better?
                            $sci_name = "no_name";
                         }
-                        # need to remove awkward characters (space, /)from name string
-                        $sci_name =~ tr/ /_/;
-                        $sci_name =~ tr/\//_/;
+                        # need to remove awkward characters (space, /, parentheses)from name string
+                        # only allow roman A-Z, a-z, 0-9
+                        $sci_name =~ s/[^A-Za-z0-9]/_/g;
                         $taxid_to_sci_name_map{$this_query_taxid} = $sci_name;
                      }
       
